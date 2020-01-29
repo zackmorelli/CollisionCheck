@@ -1,3 +1,6 @@
+C:\prog\CollisionCheck\CollisionCheck\bin\Debug\CollisionCheck.esapi.dll
+C:\prog\CollisionCheck\CollisionCheck\bin\Debug\CollisionCheck.esapi.pdb
+C:\prog\CollisionCheck\CollisionCheck\bin\Debug\geometry3Sharp.dll
 C:\prog\CollisionCheck\CollisionCheck\bin\Debug\VMS.TPS.Common.Model.API.dll
 C:\prog\CollisionCheck\CollisionCheck\bin\Debug\VMS.TPS.Common.Model.APIExtensions.dll
 C:\prog\CollisionCheck\CollisionCheck\bin\Debug\VMS.TPS.Common.Model.Types.dll
@@ -5,10 +8,10 @@ C:\prog\CollisionCheck\CollisionCheck\bin\Debug\VMS.TPS.Common.Calculation.Inter
 C:\prog\CollisionCheck\CollisionCheck\bin\Debug\VMS.TPS.Common.Model.Interface.dll
 C:\prog\CollisionCheck\CollisionCheck\bin\Debug\VMS.TPS.Common.Model.API.xml
 C:\prog\CollisionCheck\CollisionCheck\bin\Debug\VMS.TPS.Common.Model.Types.xml
-C:\prog\CollisionCheck\CollisionCheck\obj\Debug\CollisionCheck.csprojAssemblyReference.cache
+C:\prog\CollisionCheck\CollisionCheck\obj\Debug\CollisionCheck.GUI.resources
+C:\prog\CollisionCheck\CollisionCheck\obj\Debug\CollisionCheck.csproj.GenerateResource.cache
 C:\prog\CollisionCheck\CollisionCheck\obj\Debug\CollisionCheck.csproj.CoreCompileInputs.cache
 C:\prog\CollisionCheck\CollisionCheck\obj\Debug\CollisionCheck.csproj.CopyComplete
-C:\prog\CollisionCheck\CollisionCheck\bin\Debug\CollisionCheck.esapi.dll
-C:\prog\CollisionCheck\CollisionCheck\bin\Debug\CollisionCheck.esapi.pdb
 C:\prog\CollisionCheck\CollisionCheck\obj\Debug\CollisionCheck.esapi.dll
 C:\prog\CollisionCheck\CollisionCheck\obj\Debug\CollisionCheck.esapi.pdb
+C:\prog\CollisionCheck\CollisionCheck\obj\Debug\CollisionCheck.csprojAssemblyReference.cache
