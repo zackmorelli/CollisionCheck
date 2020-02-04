@@ -205,7 +205,7 @@ namespace CollisionCheck
                 {
                     CollOutput.AppendText(Environment.NewLine);
                     CollOutput.AppendText(Environment.NewLine);
-                    CollOutput.AppendText("COLLISION: Beam: " + alert.beam + "  Couch Angle: " + alert.couchangle + Environment.NewLine + "Control Point: " + alert.controlpoint + "  Gantry Angle: " + alert.gantryangle );                                           
+                    CollOutput.AppendText("COLLISION: Beam: " + alert.beam + "  Couch Angle: " + alert.couchangle + Environment.NewLine + "Control Point: " + alert.controlpoint + "  Gantry Angle: " + alert.gantryangle + "   " + alert.distpoint);                                           
                     CollOutput.AppendText(Environment.NewLine);
 
                     if(alert.edgeclip == "upper left")
