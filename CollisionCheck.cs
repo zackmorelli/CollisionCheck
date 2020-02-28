@@ -1094,13 +1094,16 @@ namespace VMS.TPS
                       //      ActGantryAngle = point.GantryAngle - 180.0;
                       //  }
 
-                            // Math.DivRem(point.Index, 3, out int res);
+                             Math.DivRem(point.Index, 6, out int res);
 
-                            //if (point.Index == 1 || point.Index == PC.Count || res == 0)
-                            //{
+                        //if (point.Index == 1 || point.Index == PC.Count || res == 0)
+                        //{
 
+                        if (res == 0)
+                        {
                             ProgOutput.AppendText(Environment.NewLine);
-                            ProgOutput.AppendText("Control Point " + point.Index + "/" + PC.Count);                                                 
+                            ProgOutput.AppendText("Control Point " + point.Index + "/" + PC.Count);
+                        }
 
                             //  MessageBox.Show("Control Point count: " + TL + ")");
                              // MessageBox.Show("Gantry ANGLE :  " + ActGantryAngle + "  ");
@@ -1336,9 +1339,7 @@ namespace VMS.TPS
                             // GANTRY EDGE POINTS COORDINATE SYSTEM TRANSFORMATION FOR COUCH ANGLE
                             if (CouchEndAngle >= 270.0 & CouchEndAngle <= 360.0)
                             {
-                                // this is really for 0 to 90 couch angle
-                                //  MessageBox.Show("REAL couch ANGLE :  " + realangle + "  ");
-                                //  MessageBox.Show("TRIGGER ROT 0 to 270");
+ 
                                 ANGLE = 360.0 - CouchEndAngle;
 
                                 Backxtrans = (BACKEDGE.x * Math.Cos(((-ANGLE * Math.PI) / 180.0))) + (BACKEDGE.z * Math.Sin(((-ANGLE * Math.PI) / 180.0)));
@@ -1447,56 +1448,9 @@ namespace VMS.TPS
                             Vector3d Fr = new Vector3d(FRONTEDGE.x, FRONTEDGE.y, FRONTEDGE.z);    //3         8     12   16
                             Vector3d Ce = new Vector3d(gantrycenter.x, gantrycenter.y, gantrycenter.z);   //4
 
-                       // MessageBox.Show("Trig");
+                        // MessageBox.Show("Trig");
 
-                    /*
-                        Vector3d[] diskgantry2pointcollection = new Vector3d[4];
-                        diskgantry2pointcollection[0] = Ri;
-                        diskgantry2pointcollection[1] = Le;
-                        diskgantry2pointcollection[2] = Ba;
-                        diskgantry2pointcollection[3] = Fr;
-
-                        Frame3f diskgantry2origin = new Frame3f(Ce);
-                        TrivialDiscGenerator makegantryhead = new TrivialDiscGenerator();
-                        Curve3Axis3RevolveGenerator makegantryhead2 = new Curve3Axis3RevolveGenerator
-                        {
-                            Axis = diskgantry2origin,
-                            Curve = diskgantry2pointcollection,
-                            Capped = true,
-                            Slices = 1
-                        };
-
-                        makegantryhead2.Generate();
-                       // MessageBox.Show("Trig1");
-
-                        makegantryhead.Radius = 382.5f;
-                        makegantryhead.StartAngleDeg = 0.0f;
-                        makegantryhead.EndAngleDeg = 360.0f;
-                        makegantryhead.Slices = 72;
-                        makegantryhead.Generate();
-                       // MessageBox.Show("Trig1.5");
-
-                        DMesh3 diskgantry = makegantryhead.MakeDMesh();
-                        DMesh3 diskgantry2 = makegantryhead2.MakeDMesh();
-                       // MessageBox.Show("Trig2");
-
-                        MeshTransforms.Translate(diskgantry, Ce);
-                        Vector3d apiSOURCE = new Vector3d(APISOURCE.x, APISOURCE.y, APISOURCE.z);
-
-                        Quaterniond diskgantryrotate = new Quaterniond(Ce, apiSOURCE);
-                        Vector3d origin = new Vector3d(0, 0, 0);
-
-                        MeshTransforms.Rotate(diskgantry, origin, diskgantryrotate);
-                       // MessageBox.Show("Trig3");
-
-                        IOWriteResult result42 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\Test\diskGantry" + beam.Id + point.Index + ".stl", new List<WriteMesh>() { new WriteMesh(diskgantry) }, WriteOptions.Defaults);
-                        IOWriteResult result76 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\Test\diskGantry2" + beam.Id + point.Index + ".stl", new List<WriteMesh>() { new WriteMesh(diskgantry2) }, WriteOptions.Defaults);
-
-                      //  MessageBox.Show("Trig7");
-
-                    */
-
-                            List<Index3i> Grangle = new List<Index3i>();
+                        List<Index3i> Grangle = new List<Index3i>();
                             Index3i shangle = new Index3i(3, 4, 0);
                             Grangle.Add(shangle);
 
@@ -1523,145 +1477,91 @@ namespace VMS.TPS
                                 // SUPERGANTRY.AppendTriangle(tri);
                             }
 
-                        /*
+                        Vector3d gantrynormal = GANTRY.GetTriNormal(0);                       
 
-                                DMesh3 SUPERGANTRY = new DMesh3(MeshComponents.VertexNormals);
-                                SUPERGANTRY.AppendVertex(new NewVertexInfo(Ri));
-                                SUPERGANTRY.AppendVertex(new NewVertexInfo(Le));
-                                SUPERGANTRY.AppendVertex(new NewVertexInfo(Ba));
-                                SUPERGANTRY.AppendVertex(new NewVertexInfo(Fr));
-                                SUPERGANTRY.AppendVertex(new NewVertexInfo(Ce));
+                        TrivialDiscGenerator makegantryhead = new TrivialDiscGenerator();
+                        makegantryhead.Radius = 382.5f;
+                        makegantryhead.StartAngleDeg = 0.0f;
+                        makegantryhead.EndAngleDeg = 360.0f;
+                        makegantryhead.Slices = 72;
+                        makegantryhead.Generate();
+                        DMesh3 diskgantry = makegantryhead.MakeDMesh();
+                        MeshTransforms.Translate(diskgantry, Ce);
 
-                            List<Index3i> SuperGrangle = new List<Index3i>();
-                            Index3i Supershangle = new Index3i();
+                       // IOWriteResult result40 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\Test\diskGantryi" + beam.Id + point.Index + ".stl", new List<WriteMesh>() { new WriteMesh(diskgantry) }, WriteOptions.Defaults);
 
-                            Quaterniond gantryrot = new Quaterniond(Ce, 10.0);
+                        Vector3d diskgantrynormal = diskgantry.GetTriNormal(0);
+                        double gantrydotprod = Vector3d.Dot(diskgantrynormal.Normalized, gantrynormal.Normalized);
+                        double anglebetweengantrynormals = Math.Acos(gantrydotprod);     // in radians
+                                                                                         // MessageBox.Show("angle between: " + anglebetweengantrynormals);
 
-                            Vector3d newRi = MeshTransforms.Rotate(Ri, origin, gantryrot);
-                            Vector3d newLe = MeshTransforms.Rotate(Le, origin, gantryrot);
-                            Vector3d newBa = MeshTransforms.Rotate(Ba, origin, gantryrot);
-                            Vector3d newFr = MeshTransforms.Rotate(Fr, origin, gantryrot);
+                        // this changes with couch rotation. (0,0,1) at couch zero degrees. implement coordinate system transformation. 
+                        Vector3d zaxisgd = new Vector3d(0,0,1);
+                        double zaxisgd_xp = 0.0;
+                        double zaxisgd_zp = 0.0;
 
-                            SUPERGANTRY.AppendVertex(new NewVertexInfo(newRi));
-                            SUPERGANTRY.AppendVertex(new NewVertexInfo(newLe));
-                            SUPERGANTRY.AppendVertex(new NewVertexInfo(newBa));
-                            SUPERGANTRY.AppendVertex(new NewVertexInfo(newFr));
+                        if (CouchEndAngle >= 270.0 & CouchEndAngle <= 360.0)
+                        {
+                            ANGLE = 360.0 - CouchEndAngle;
 
-                            //first rotation
-                            Supershangle = new Index3i(4, 0, 5);
-                            SuperGrangle.Add(Supershangle);
+                            // counterclockwise rotation
+                            zaxisgd_xp = (zaxisgd.x * Math.Cos(((-ANGLE * Math.PI) / 180.0))) + (zaxisgd.z * Math.Sin(((-ANGLE * Math.PI) / 180.0)));
+                            zaxisgd_zp = (zaxisgd.z * Math.Cos(((-ANGLE * Math.PI) / 180.0))) - (zaxisgd.x * Math.Sin(((-ANGLE * Math.PI) / 180.0)));
+                        }
+                        else if (CouchEndAngle >= 0.0 & CouchEndAngle <= 90.0)
+                        {
+                            ANGLE = CouchEndAngle;
 
-                            Supershangle = new Index3i(4, 1, 6 );
-                            SuperGrangle.Add(Supershangle);
+                            //clockwise rotation
+                            zaxisgd_xp = (zaxisgd.x * Math.Cos(((ANGLE * Math.PI) / 180.0))) + (zaxisgd.z * Math.Sin(((ANGLE * Math.PI) / 180.0)));
+                            zaxisgd_zp = (zaxisgd.z * Math.Cos(((ANGLE * Math.PI) / 180.0))) - (zaxisgd.x * Math.Sin(((ANGLE * Math.PI) / 180.0)));
+                        }
 
-                            Supershangle = new Index3i(4, 2, 7);
-                            SuperGrangle.Add(Supershangle);
+                        zaxisgd.x = zaxisgd_xp;
+                        zaxisgd.z = zaxisgd_zp;
 
-                            Supershangle = new Index3i(4, 3, 8);
-                            SuperGrangle.Add(Supershangle);
+                        if (ActGantryAngle > 180.0)
+                        {
+                            anglebetweengantrynormals = -1 * anglebetweengantrynormals;
+                        }
 
-                            for (int i = 0; i <= 7; i++)
-                            {
-                                newRi = MeshTransforms.Rotate(newRi, origin, gantryrot);
-                                newLe = MeshTransforms.Rotate(newLe, origin, gantryrot);
-                                newBa = MeshTransforms.Rotate(newBa, origin, gantryrot);
-                                newFr = MeshTransforms.Rotate(newFr, origin, gantryrot);
+                        Vector3d ISOV = new Vector3d(Ce.x, Ce.y, Ce.z);
+                        Quaterniond diskrot = new Quaterniond(zaxisgd, (anglebetweengantrynormals * MathUtil.Rad2Deg));
+                        MeshTransforms.Rotate(diskgantry, ISOV, diskrot);
 
-                                SUPERGANTRY.AppendVertex(new NewVertexInfo(newRi));
-                                SUPERGANTRY.AppendVertex(new NewVertexInfo(newLe));
-                                SUPERGANTRY.AppendVertex(new NewVertexInfo(newBa));
-                                SUPERGANTRY.AppendVertex(new NewVertexInfo(newFr));
+                        IOWriteResult result42 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\DiskGantry\diskgantry" + beam.Id + point.Index + ".stl", new List<WriteMesh>() { new WriteMesh(diskgantry) }, WriteOptions.Defaults);
 
-                                Supershangle = new Index3i(4, 5 + (i * 4), 9 + (i * 4));
-                                SuperGrangle.Add(Supershangle);
+                        IOWriteResult result5 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\SquareGantry\Gantry" + beam.Id + point.Index + ".stl", new List<WriteMesh>() { new WriteMesh(GANTRY) }, WriteOptions.Defaults);
 
-                                Supershangle = new Index3i(4, 6 + (i * 4), 10 + (i * 4));
-                                SuperGrangle.Add(Supershangle);
+                        // MessageBox.Show("Trig8");
 
-                                Supershangle = new Index3i(4, 7 + (i * 4), 11 + (i * 4));
-                                SuperGrangle.Add(Supershangle);
+                        // MessageBox.Show("number of triangles: " + cbht);
 
-                                Supershangle = new Index3i(4, 8 + (i * 4), 12 + (i * 4));
-                                SuperGrangle.Add(Supershangle);
-                            }
+                        // ProgOutput.AppendText(Environment.NewLine);
+                        // ProgOutput.AppendText("Gantry mesh Construction Done");
 
-                            // last points at 80 degrees with original points of the next one
-                            Supershangle = new Index3i(4, 37, 2);
-                            SuperGrangle.Add(Supershangle);
+                        //  DMesh3 PATBOX2 = DMesh3Builder.Build(IEnumerable<Vector3d> vertices, triangles);
 
-                            Supershangle = new Index3i(4, 38, 3);
-                            SuperGrangle.Add(Supershangle);
+                        //PATBOX.CheckValidity();
 
-                            Supershangle = new Index3i(4, 39, 1);
-                            SuperGrangle.Add(Supershangle);
+                        //IOWriteResult result = StandardMeshWriter.WriteFile(@"\\Wvvrnimbp01ss\va_data$\filedata\ProgramData\Vision\PublishedScripts\PATBOX.stl", new List<WriteMesh>() { new WriteMesh(PATBOX) }, WriteOptions.Defaults);
 
-                            Supershangle = new Index3i(4, 40, 0);
-                            SuperGrangle.Add(Supershangle);
+                        DMeshAABBTree3 GANTRYspatial = new DMeshAABBTree3(GANTRY);
+                        GANTRYspatial.Build();
 
-                            foreach (Index3i tri in SuperGrangle)
-                            {
-                                SUPERGANTRY.AppendTriangle(tri);
-                            }
-
-                    */
-
-                        //    MessageBox.Show("Trig8");
-
-                            // MessageBox.Show("number of triangles: " + cbht);
-
-                            // ProgOutput.AppendText(Environment.NewLine);
-                            // ProgOutput.AppendText("Gantry mesh Construction Done");
-
-                            //  DMesh3 PATBOX2 = DMesh3Builder.Build(IEnumerable<Vector3d> vertices, triangles);
-
-                            //PATBOX.CheckValidity();
-
-                            //IOWriteResult result = StandardMeshWriter.WriteFile(@"\\Wvvrnimbp01ss\va_data$\filedata\ProgramData\Vision\PublishedScripts\PATBOX.stl", new List<WriteMesh>() { new WriteMesh(PATBOX) }, WriteOptions.Defaults);
-
-                            IOWriteResult result5 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\Test\Gantry" + beam.Id + point.Index + ".stl", new List<WriteMesh>() { new WriteMesh(GANTRY) }, WriteOptions.Defaults);
-                           // IOWriteResult result30 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\TestBolus\superGantry" + beam.Id + point.Index + ".stl", new List<WriteMesh>() { new WriteMesh(SUPERGANTRY) }, WriteOptions.Defaults);
-                            //    DMesh3 SUPERGANTRYCOPY = SUPERGANTRY;
-
-                                // use the remesher to add triangles/vertices to mesh based off of the simple box mesh
-
-                            //    Remesher R = new Remesher(SUPERGANTRY);
-                                Remesher JK = new Remesher(GANTRY);
-                                //  MeshConstraintUtil.PreserveBoundaryLoops(R);
-                             //   R.PreventNormalFlips = true;
-                                JK.PreventNormalFlips = true;
-                             //   R.SetTargetEdgeLength(30.0);
-                             //   R.SmoothSpeedT = 0.4;
-                                JK.SetTargetEdgeLength(30.0);
-                                JK.SmoothSpeedT = 0.15;
-                              //  R.SetProjectionTarget(MeshProjectionTarget.Auto(SUPERGANTRYCOPY));
-                              //  R.ProjectionMode = Remesher.TargetProjectionMode.Inline;
-
-                                for (int k = 0; k < 5; k++)
-                                {
-                                   // R.BasicRemeshPass();
-                                    JK.BasicRemeshPass();
-                                }
-
-                               // ProgOutput.AppendText(Environment.NewLine);
-                               // ProgOutput.AppendText("Gantry Remeshing Done");
-                                // Remeshing settings aren't perfect, bu they are fairly dialed in
-
-                              //  IOWriteResult result3 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\TestBolus\superGantryremeshed" + beam.Id + point.Index + ".stl", new List<WriteMesh>() { new WriteMesh(SUPERGANTRY) }, WriteOptions.Defaults);
-                                IOWriteResult result89 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\Test\Gantryremeshed" + beam.Id + point.Index + ".stl", new List<WriteMesh>() { new WriteMesh(GANTRY) }, WriteOptions.Defaults);
-
-                                DMeshAABBTree3 GANTRYspatial = new DMeshAABBTree3(GANTRY);
-                                GANTRYspatial.Build();
+                        DMeshAABBTree3 diskgantryspatial = new DMeshAABBTree3(diskgantry);
+                        diskgantryspatial.Build();
 
                           //      MessageBox.Show("Trig3");
 
-                            string boxedgeflag = null;
-                            bool closebody = false;
-                            bool coli = true;
+                         string boxedgeflag = null;
+                         bool closebody = false;
+                         bool coli = true;
 
 
                             if (findCouchSurf == true)
                             {
-                                if (GANTRYspatial.TestIntersection(CouchSurfSpatial) == true)
+                                if (diskgantryspatial.TestIntersection(CouchSurfSpatial) == true)
                                 {
                                     // MessageBox.Show("gspatial / couch surface collision");
                                     collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(ActGantryAngle, 1, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distpoint = "Intersection with Couch", pbodyalert = closebody });
@@ -1670,7 +1570,7 @@ namespace VMS.TPS
 
                             if (findCouchInterior == true)
                             {
-                                if (GANTRYspatial.TestIntersection(PCouchInteriorSpatial) == true)
+                                if (diskgantryspatial.TestIntersection(PCouchInteriorSpatial) == true)
                                 {
                                     // MessageBox.Show("gspatial / couch interior collision");
                                     collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(ActGantryAngle, 1, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distpoint = "Intersection with Couch.", pbodyalert = closebody });
@@ -1679,7 +1579,7 @@ namespace VMS.TPS
 
                             if (findProneBrstBoard == true)
                             {
-                                if (GANTRYspatial.TestIntersection(PProne_Brst_BoardSpatial) == true)
+                                if (diskgantryspatial.TestIntersection(PProne_Brst_BoardSpatial) == true)
                                 {
                                     // MessageBox.Show("gspatial / Prone Breast Board collision");
                                     collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(ActGantryAngle, 1, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distpoint = "Intersection with Prone Breast Board.", pbodyalert = closebody });
@@ -1687,11 +1587,11 @@ namespace VMS.TPS
                             }
 
 
-                            if (GANTRYspatial.TestIntersection(spatial) == true)
+                            if (diskgantryspatial.TestIntersection(spatial) == true)
                             {
                                     // MessageBox.Show("gspatial / spatial(patient box) collision");
 
-                                    if (GANTRYspatial.TestIntersection(PBodyContourSpatial) == true)
+                                    if (diskgantryspatial.TestIntersection(PBodyContourSpatial) == true)
                                     {
                                         closebody = true;
                                     }
