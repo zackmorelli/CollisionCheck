@@ -45,7 +45,7 @@
             this.Planlist.Font = new System.Drawing.Font("Goudy Old Style", 14.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.Planlist.FormattingEnabled = true;
             this.Planlist.ItemHeight = 23;
-            this.Planlist.Location = new System.Drawing.Point(12, 188);
+            this.Planlist.Location = new System.Drawing.Point(16, 188);
             this.Planlist.Name = "Planlist";
             this.Planlist.Size = new System.Drawing.Size(315, 234);
             this.Planlist.TabIndex = 0;
@@ -54,18 +54,18 @@
             // CollOutput
             // 
             this.CollOutput.Font = new System.Drawing.Font("Goudy Old Style", 13F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.CollOutput.Location = new System.Drawing.Point(344, 12);
+            this.CollOutput.Location = new System.Drawing.Point(782, 8);
             this.CollOutput.Multiline = true;
             this.CollOutput.Name = "CollOutput";
             this.CollOutput.ReadOnly = true;
             this.CollOutput.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.CollOutput.Size = new System.Drawing.Size(432, 410);
+            this.CollOutput.Size = new System.Drawing.Size(432, 594);
             this.CollOutput.TabIndex = 1;
             // 
             // Executebutton
             // 
             this.Executebutton.Font = new System.Drawing.Font("Goudy Old Style", 14.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.Executebutton.Location = new System.Drawing.Point(798, 317);
+            this.Executebutton.Location = new System.Drawing.Point(611, 517);
             this.Executebutton.Name = "Executebutton";
             this.Executebutton.Size = new System.Drawing.Size(148, 85);
             this.Executebutton.TabIndex = 2;
@@ -76,7 +76,7 @@
             // DirectionsBox
             // 
             this.DirectionsBox.Font = new System.Drawing.Font("Goudy Old Style", 13F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.DirectionsBox.Location = new System.Drawing.Point(12, 12);
+            this.DirectionsBox.Location = new System.Drawing.Point(13, 8);
             this.DirectionsBox.Multiline = true;
             this.DirectionsBox.Name = "DirectionsBox";
             this.DirectionsBox.ReadOnly = true;
@@ -94,7 +94,7 @@
             "Thorax",
             "Abdomen",
             "Pelvis"});
-            this.imagelocationlist.Location = new System.Drawing.Point(798, 12);
+            this.imagelocationlist.Location = new System.Drawing.Point(16, 428);
             this.imagelocationlist.Name = "imagelocationlist";
             this.imagelocationlist.Size = new System.Drawing.Size(166, 88);
             this.imagelocationlist.TabIndex = 4;
@@ -104,7 +104,7 @@
             // 
             this.heightlabel.AutoSize = true;
             this.heightlabel.Font = new System.Drawing.Font("Goudy Old Style", 14.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.heightlabel.Location = new System.Drawing.Point(794, 148);
+            this.heightlabel.Location = new System.Drawing.Point(12, 537);
             this.heightlabel.Name = "heightlabel";
             this.heightlabel.Size = new System.Drawing.Size(120, 23);
             this.heightlabel.TabIndex = 5;
@@ -114,7 +114,7 @@
             // 
             this.Heightbox.AcceptsReturn = true;
             this.Heightbox.Font = new System.Drawing.Font("Goudy Old Style", 14.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.Heightbox.Location = new System.Drawing.Point(798, 174);
+            this.Heightbox.Location = new System.Drawing.Point(16, 563);
             this.Heightbox.Name = "Heightbox";
             this.Heightbox.Size = new System.Drawing.Size(103, 30);
             this.Heightbox.TabIndex = 6;
@@ -124,7 +124,7 @@
             // 
             this.Hunit.AutoSize = true;
             this.Hunit.Font = new System.Drawing.Font("Goudy Old Style", 14.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.Hunit.Location = new System.Drawing.Point(907, 177);
+            this.Hunit.Location = new System.Drawing.Point(121, 566);
             this.Hunit.Name = "Hunit";
             this.Hunit.Size = new System.Drawing.Size(33, 23);
             this.Hunit.TabIndex = 7;
@@ -133,19 +133,19 @@
             // ProgOutput
             // 
             this.ProgOutput.Font = new System.Drawing.Font("Goudy Old Style", 13F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.ProgOutput.ReadOnly = true;
-            this.ProgOutput.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.ProgOutput.Location = new System.Drawing.Point(984, 12);
+            this.ProgOutput.Location = new System.Drawing.Point(354, 8);
             this.ProgOutput.Multiline = true;
             this.ProgOutput.Name = "ProgOutput";
-            this.ProgOutput.Size = new System.Drawing.Size(352, 414);
+            this.ProgOutput.ReadOnly = true;
+            this.ProgOutput.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.ProgOutput.Size = new System.Drawing.Size(393, 488);
             this.ProgOutput.TabIndex = 8;
             // 
             // GUI
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1348, 450);
+            this.ClientSize = new System.Drawing.Size(1227, 614);
             this.Controls.Add(this.ProgOutput);
             this.Controls.Add(this.Hunit);
             this.Controls.Add(this.Heightbox);

@@ -7,11 +7,11 @@ using System.Runtime.InteropServices;
 // associated with an assembly.
 [assembly: AssemblyTitle("CollisionCheck")]
 [assembly: AssemblyDescription("Written by Zackary T Morelli")]
-[assembly: AssemblyConfiguration("")]
+[assembly: AssemblyConfiguration("Experimental - 0.5")]
 [assembly: AssemblyCompany("Radiation Oncology Department, Lahey Hospital and Medical Center")]
 [assembly: AssemblyProduct("CollisionCheck")]
-[assembly: AssemblyCopyright("Copyright ©  2019")]
-[assembly: AssemblyTrademark("Copyright © 2019 Radiation Oncology Department, Lahey Hospital and Medical Center")]
+[assembly: AssemblyCopyright("Copyright ©  2020")]
+[assembly: AssemblyTrademark("Copyright © 2020 Radiation Oncology Department, Lahey Hospital and Medical Center")]
 [assembly: AssemblyCulture("")]
 
 // Setting ComVisible to false makes the types in this assembly not visible
@@ -32,5 +32,5 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyVersion("0.5.0.0")]
+[assembly: AssemblyFileVersion("0.5.0.0.0")]

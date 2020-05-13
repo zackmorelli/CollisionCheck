@@ -35,6 +35,8 @@ namespace CollisionCheck
         public string pl = null;
         public string bodyloc = null;
         public string height = null;
+        public double Xshiftvalue = 0.0;
+        public double Yshiftvalue = 0.0;
 
         public GUI(IEnumerable<PlanSetup> Plans, Patient patient, VMS.TPS.Common.Model.API.Image image)
         {
@@ -67,7 +69,7 @@ namespace CollisionCheck
 
         }
 
-
+        
         private void EXECUTE(IEnumerable<PlanSetup> Plans, VMS.TPS.Common.Model.API.Image image)
         {
             // need to make plan/plansum pick more robust using PL

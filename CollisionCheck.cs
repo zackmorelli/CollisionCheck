@@ -172,11 +172,14 @@ namespace VMS.TPS
             }
         }
 
-        public static DMeshAABBTree3 BOXMAKER (bool findCouchSurf, bool findCouchInterior, bool findProneBrstBoard, Structure Body, Structure CouchSurface, Structure CouchInterior, Structure Prone_Brst_Board, string bodyloc, double ht, TextBox ProgOutput, PlanSetup plan, Image image)
+        public static DMeshAABBTree3 BOXMAKER (string PATEINTORIENTATION, bool findCouchSurf, bool findCouchInterior, bool findProneBrstBoard, Structure Body, Structure CouchSurface, Structure CouchInterior, Structure Prone_Brst_Board, string bodyloc, double ht, double uXISOshift, double uYISOshift, double uZISOshift, TextBox ProgOutput, PlanSetup plan, Image image)
         {
 
             ht = ht * 10.0;    //convert from cm to mm.   IT is in mm
 
+            Vector3d PatOrientRotCenter = new Vector3d(0, 0, 0);
+            Quaterniond PatOrientRot = new Quaterniond();
+            Vector3d ZaxisPatOrientRot = new Vector3d(0, 0, 1);
 
             // makes mesh out of patient body contour
             List<Vector3d> pvl = new List<Vector3d>();
@@ -225,6 +228,22 @@ namespace VMS.TPS
             for (int i = 0; i < ptl.Count; i++)
             {
                 PBodyContour.AppendTriangle(ptl[i]);
+            }
+
+            if(PATEINTORIENTATION == "HeadFirstProne")
+            {
+                PatOrientRotCenter = MeshMeasurements.Centroid(PBodyContour);
+                PatOrientRot = new Quaterniond(ZaxisPatOrientRot, 180.0);
+                MeshTransforms.Rotate(PBodyContour, PatOrientRotCenter, PatOrientRot);
+            }
+
+            // need to move patient stuff to user origin
+            // negative to move up in the y, positive to move down in the y
+            // if iso is below user origin (y is less than), then need to move up
+
+            if(uXISOshift != 0.0 || uYISOshift != 0.0 || uZISOshift != 0.0)
+            {
+                MeshTransforms.Translate(PBodyContour, uXISOshift, uYISOshift, uZISOshift);
             }
 
             IOWriteResult result24 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\TestBolus\PBODY.stl", new List<WriteMesh>() { new WriteMesh(PBodyContour) }, WriteOptions.Defaults);
@@ -281,6 +300,19 @@ namespace VMS.TPS
                 {
                     PBodyContour.AppendTriangle(csptl[i]);
                 }
+
+                if (PATEINTORIENTATION == "HeadFirstProne")
+                {
+                    PatOrientRotCenter = MeshMeasurements.Centroid(PBodyContour);
+                    PatOrientRot = new Quaterniond(ZaxisPatOrientRot, 180.0);
+                    MeshTransforms.Rotate(PCouchsurf, PatOrientRotCenter, PatOrientRot);
+                }
+
+                if (uXISOshift != 0.0 || uYISOshift != 0.0 || uZISOshift != 0.0)
+                {
+                    MeshTransforms.Translate(PCouchsurf, uXISOshift, -uYISOshift, uZISOshift);
+                }
+
 
                 IOWriteResult result31 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\TestBolus\CouchSurface.stl", new List<WriteMesh>() { new WriteMesh(PCouchsurf) }, WriteOptions.Defaults);
 
@@ -339,6 +371,18 @@ namespace VMS.TPS
                     PCouchInterior.AppendTriangle(ciptl[i]);
                 }
 
+                if (PATEINTORIENTATION == "HeadFirstProne")
+                {
+                    PatOrientRotCenter = MeshMeasurements.Centroid(PBodyContour);
+                    PatOrientRot = new Quaterniond(ZaxisPatOrientRot, 180.0);
+                    MeshTransforms.Rotate(PCouchInterior, PatOrientRotCenter, PatOrientRot);
+                }
+
+                if (uXISOshift != 0.0 || uYISOshift != 0.0 || uZISOshift != 0.0)
+                {
+                    MeshTransforms.Translate(PCouchInterior, uXISOshift, -uYISOshift, uZISOshift);
+                }
+
                 IOWriteResult result30 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\TestBolus\CouchInterior.stl", new List<WriteMesh>() { new WriteMesh(PCouchInterior) }, WriteOptions.Defaults);
 
                 PCouchInteriorSpatial = new DMeshAABBTree3(PCouchInterior);
@@ -395,6 +439,18 @@ namespace VMS.TPS
                     PProne_Brst_Board.AppendTriangle(bbptl[i]);
                 }
 
+                if (PATEINTORIENTATION == "HeadFirstProne")
+                {
+                    PatOrientRotCenter = MeshMeasurements.Centroid(PBodyContour);
+                    PatOrientRot = new Quaterniond(ZaxisPatOrientRot, 180.0);
+                    MeshTransforms.Rotate(PProne_Brst_Board, PatOrientRotCenter, PatOrientRot);
+                }
+
+                if (uXISOshift != 0.0 || uYISOshift != 0.0 || uZISOshift != 0.0)
+                {
+                    MeshTransforms.Translate(PProne_Brst_Board, uXISOshift, -uYISOshift, uZISOshift);
+                }
+
                 IOWriteResult result36 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\TestBolus\ProneBreastBoard.stl", new List<WriteMesh>() { new WriteMesh(PProne_Brst_Board) }, WriteOptions.Defaults);
 
                 PProne_Brst_BoardSpatial = new DMeshAABBTree3(PProne_Brst_Board);
@@ -402,17 +458,11 @@ namespace VMS.TPS
             }
 
 
-
-
-
-
-
-
             Rect3D BOX = Body.MeshGeometry.Bounds;  // retrieves bounding box of the body contour
 
            // MessageBox.Show("body structure center point is: (" + Body.CenterPoint.x + " ," + Body.CenterPoint.y + " ," + Body.CenterPoint.z + ")");
 
-             VVector dicomvec = image.DicomToUser(Body.CenterPoint, plan);
+          //   VVector dicomvec = image.DicomToUser(Body.CenterPoint, plan);
 
              // MessageBox.Show("body structure center point is at USER: (" + dicomvec.x + " ," + dicomvec.y + " ," + dicomvec.z + ")");
 
@@ -461,11 +511,11 @@ namespace VMS.TPS
            // MessageBox.Show("LT is: " + LT);
 
             double headdownshift = ht - LT;
-            double thoraxupshift = (ht - LT) * 0.22;
+            double thoraxupshift = (ht - LT) * 0.24;
             double thoraxdownshift = (ht - LT) * 0.78;
-            double abdomenupshift = (ht - LT) * 0.3;
+            double abdomenupshift = (ht - LT) * 0.35;
             double abdomendownshift = (ht - LT) * 0.7;
-            double pelvisupshift = (ht - LT) * 0.45;
+            double pelvisupshift = (ht - LT) * 0.60;
             double pelvisdownshift = (ht - LT) * 0.55;
 
            // MessageBox.Show("headdownshift is: " + headdownshift);
@@ -831,113 +881,42 @@ namespace VMS.TPS
 
             // Remeshing settings aren't perfect, bu they are fairly dialed in
 
+            if (PATEINTORIENTATION == "HeadFirstProne")
+            {
+                PatOrientRotCenter = MeshMeasurements.Centroid(PATBOX);
+                PatOrientRot = new Quaterniond(ZaxisPatOrientRot, 180.0);
+                MeshTransforms.Rotate(PATBOX, PatOrientRotCenter, PatOrientRot);
+            }
+
+            if (uXISOshift != 0.0 || uYISOshift != 0.0 || uZISOshift != 0.0)
+            {
+                MeshTransforms.Translate(PATBOX, uXISOshift, uYISOshift, uZISOshift);
+            }
+
+
+            // we apply Isocenter shifts to the square gantry model to ensure it is centered at (0,0,0) of the eclipse coordinate system, i.e. we account for the shifts to the user origin from the CT scan DICOM coordinates
+            // but sometimes, for some plans, the User origin (0,0,0) in the Eclipse coordiante system is not the Isocenter of the beam
+            // I think the actual isocenter of a beam is given by what ESAPI calls the Field reference point.
+            // I can align the gantry model to the correct iso of the beam by performing a simple translation based off the difference in position of the UserOrigin and the FieldReferencePoint
+            // probably is a real life setup thing for prone breast plans for example
+
+
             IOWriteResult result3 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\TestBolus\PATBOXremeshed.stl", new List<WriteMesh>() { new WriteMesh(PATBOX) }, WriteOptions.Defaults);
-
-            List<Vector3d> patlist = new List<Vector3d>();      //for patbox
-            List<Vector3d> patlistb = new List<Vector3d>();   //for pbody
-
-            for (int ci = 0; ci <= PATBOX.MaxVertexID; ci++)
-            {
-                if (PATBOX.IsVertex(ci) == false)
-                {
-                    continue;
-                }
-
-                Vector3d distpoint = PATBOX.GetVertex(ci);
-
-                patlist.Add(distpoint);
-
-            }
-
-            for (int cb = 0; cb <= PBodyContour.MaxVertexID; cb++)
-            {
-                if (PBodyContour.IsVertex(cb) == false)
-                {
-                    continue;
-                }
-
-                Vector3d distpointb = PBodyContour.GetVertex(cb);
-
-                patlistb.Add(distpointb);
-
-            }
-
-            foreach (Vector3d V in patlist)
-            {
-                if (V.x > pmaxx)
-                {
-                    pmaxx = V.x;
-                }
-
-                if (V.x < pminx)
-                {
-                    pminx = V.x;
-                }
-
-                if (V.y > pmaxy)
-                {
-                    pmaxy = V.y;
-                }
-
-                if (V.y < pminy)
-                {
-                    pminy = V.y;
-                }
-
-                if (V.z > pmaxz)
-                {
-                    pmaxz = V.z;
-                }
-
-                if (V.z < pminz)
-                {
-                    pminz = V.z;
-                }
-            }
-
-            foreach (Vector3d Vb in patlistb)
-            {
-
-                if (Vb.z > pbmaxz)
-                {
-                    pbmaxz = Vb.z;
-                }
-
-                if (Vb.z < pbminz)
-                {
-                    pbminz = Vb.z;
-                }
-            }
-
-
-            
-
-      /*
-            MessageBox.Show("pmaxx is: (" + pmaxx + ")");
-            MessageBox.Show("pminx is: (" + pminx + ")");
-            MessageBox.Show("pmaxy is: (" + pmaxy + ")");
-            MessageBox.Show("pminy is: (" + pminy + ")");
-            MessageBox.Show("pmaxz is: (" + pmaxz + ")");
-            MessageBox.Show("pminz is: (" + pminz + ")");
-            MessageBox.Show("pbmaxz is: (" + pbmaxz + ")");
-            MessageBox.Show("pbminz is: (" + pbminz + ")");
-      */
-
-
-
 
             DMeshAABBTree3 spatial = new DMeshAABBTree3(PATBOX);
             spatial.Build();
 
-
             return spatial;
-
         }
 
 
         public static List<CollisionAlert> CollisionCheck(PlanSetup plan, string bodyloc, double ht, TextBox ProgOutput, Image image)
         {
             // declaration space for outputs and things used between boxmaker and collision check
+
+            double uXISOshift = 0.0;   // these aren't Iso shifts, they are patient object shifts, for when Iso and user origin are different
+            double uYISOshift = 0.0;
+            double uZISOshift = 0.0;
 
             List<CollisionAlert> collist = new List<CollisionAlert>();
             CollisionAlert colcomp = new CollisionAlert();
@@ -1003,12 +982,22 @@ namespace VMS.TPS
             string PATIENTORIENTATION = null;
 
             // Head first prone
-            if(plan.TreatmentOrientation == PatientOrientation.HeadFirstProne)
+            if(plan.TreatmentOrientation == PatientOrientation.HeadFirstSupine)
+            {
+                PATIENTORIENTATION = "HeadFirstSupine";
+            }
+            else if(plan.TreatmentOrientation == PatientOrientation.HeadFirstProne)
             {
                 PATIENTORIENTATION = "HeadFirstProne";
             }
+            
+      //      else if(plan.TreatmentOrientation == PatientOrientation.)
+      //      {
 
-            DMeshAABBTree3 spatial = BOXMAKER(findCouchSurf, findCouchInterior, findProneBrstBoard, Body, CouchSurface, CouchInterior, Prone_Brst_Board, bodyloc, ht, ProgOutput, plan, image);
+
+      //      }
+
+         
 
             // start of beam loop
             foreach (Beam beam in plan.Beams)
@@ -1018,7 +1007,6 @@ namespace VMS.TPS
                 {
                     continue;
                 }
-
 
                 // ANGLES ARE IN DEGREES
                 ControlPointCollection PC = beam.ControlPoints;
@@ -1037,17 +1025,60 @@ namespace VMS.TPS
                      ProgOutput.AppendText("Starting analysis of beam " + beam.Id + " in plan " + plan.Id + " .");
                      // MessageBox.Show("Starting analysis of beam " + beam.Id + " in plan " + plan.Id + " .");
 
-                     VVector ISO = beam.IsocenterPosition;
-                     // MessageBox.Show("Isocenter point is at: (" + ISO.x + " ," + ISO.y + " ," + ISO.z + ")");
+                    VVector ISO = beam.IsocenterPosition;
+                    VVector UserOrigin = image.UserOrigin;
+                    VVector Origin = image.Origin;
 
-                     double DistRightEdge = 0.0;
-                            double DistLeftEdge = 0.0;
-                            double DistBackEdge = 0.0;
-                            double DistFrontEdge = 0.0;
-                            double Distgf = 0.0;
+                    // need to move patient stuff to user origin
+                    // negative to move up in the y, positive to move down in the y
+                    // if iso is below user origin (y is less than), then need to move up
 
-                            // source position creation
-                            double myZ = 0.0;
+                    // This accounts for the UserOrigin not being at ISO.
+                    if (ISO.Equals(UserOrigin) == false)
+                    {
+                        if(ISO.y < UserOrigin.y)
+                        {
+                            uYISOshift = -1 * (UserOrigin.y - ISO.y);
+                        }
+                        else if(ISO.y > UserOrigin.y)
+                        {
+                            uYISOshift = (ISO.y - UserOrigin.y);
+                        }
+
+                        if (ISO.x < UserOrigin.x)
+                        {
+                            uYISOshift =  (UserOrigin.x - ISO.x);
+                        }
+                        else if (ISO.x > UserOrigin.x)
+                        {
+                            uYISOshift = -1 * (ISO.x - UserOrigin.x);
+                        }
+
+                        if (ISO.z < UserOrigin.z)
+                        {
+                            uZISOshift = (UserOrigin.z - ISO.z);
+                        }
+                        else if (ISO.z > UserOrigin.z)
+                        {
+                            uZISOshift = -1 * (ISO.z - UserOrigin.z);
+                        }
+
+                    }
+
+                     MessageBox.Show("uXISOshift is at: " + uXISOshift );
+                     MessageBox.Show("uYISOshift point is at: " + uYISOshift);
+                     MessageBox.Show("uZISOshift point is at: " + uZISOshift);
+
+
+                    DMeshAABBTree3 spatial = BOXMAKER(PATIENTORIENTATION, findCouchSurf, findCouchInterior, findProneBrstBoard, Body, CouchSurface, CouchInterior, Prone_Brst_Board, bodyloc, ht, uXISOshift, uYISOshift, uZISOshift , ProgOutput, plan, image);
+
+                   // MessageBox.Show("Isocenter point is at: (" + ISO.x + " ," + ISO.y + " ," + ISO.z + ")");
+                   // MessageBox.Show("Image origin is at: (" + Origin.x + " ," + Origin.y + " ," + Origin.z + ")");
+                   // MessageBox.Show("User Origin at: (" + UserOrigin.x + " ," + UserOrigin.y + " ," + UserOrigin.z + ")");
+
+
+                    // source position creation
+                    double myZ = 0.0;
                             double myX = 0.0;
                             double myY = 0.0;
                 
@@ -1081,7 +1112,6 @@ namespace VMS.TPS
                             double Leftztrans = 0.0;
                             double Rightztrans = 0.0;
                     DMeshAABBTree3.IntersectionsQueryResult intersectlist = new DMeshAABBTree3.IntersectionsQueryResult();
-                    Vector3d Meshint = new Vector3d();
 
 
                     foreach (ControlPoint point in PC)
@@ -1099,40 +1129,71 @@ namespace VMS.TPS
                         //if (point.Index == 1 || point.Index == PC.Count || res == 0)
                         //{
 
-                        if (res == 0)
+                          if (res == 0)
+                          {
+                             ProgOutput.AppendText(Environment.NewLine);
+                             ProgOutput.AppendText("Control Point " + point.Index + "/" + PC.Count);
+                          }
+
+
+                        //  MessageBox.Show("Control Point count: " + TL + ")");
+                        // MessageBox.Show("Gantry ANGLE :  " + ActGantryAngle + "  ");
+                        //  MessageBox.Show("couch ANGLE :  " + CouchEndAngle + "  ");
+
+                        //  MessageBox.Show("real couch ANGLE :  " + realangle + "  ");
+
+                        VVector APISOURCE = beam.GetSourceLocation(ActGantryAngle);  // negative Y
+                                                                                     // MessageBox.Show("SOURCE (already transformed by API): (" + APISOURCE.x + " ," + APISOURCE.y + " ," + APISOURCE.z + ")");
+
+                        /*  So, the issue with the Source position is that it actually does change in accordance with the couch angle,
+                         *  in other words, the position returned by the source location method has already had a coordinate transformation
+                         *  performed on it so that it is in the coordinate system of the patient's image. And it is in the Eclipse coord. system.
+                         *  
+                         *  Because the gantry center point and other points of the gantry need to first be constructed with everything at couch zero,
+                         *  the position of the Source at couch zero needs to be determined, otherwise the gantrycenter point calculated from the source can be wrong,
+                         *  because it may operate on the wrong position components (because it assumes the couch is at zero). 
+                         *  
+                         *  It is safer to calculate the position of all the gantry points as if they were at couch zero first, and then do a coord. transform for the couch angle.
+                         *  
+                         *  Anyway, in order to find the correct position of the gantry center point we need to find the couch zero position of source, using the following equation.
+                         */
+
+                        // need to come up with something to set polarity ISO.x and ISO.y based on patient orientation and where the ISO is.
+                        // ISO coords can be negative !!!!!
+
+
+                        myZ = ISO.z;
+                        myX = 1000 * Math.Cos((((ActGantryAngle - 90.0) * Math.PI) / 180.0)) + ISO.x;    // - 90 degrees is because the polar coordinate system has 0 degrees on the right side
+                        myY = 1000 * Math.Sin((((-ActGantryAngle - 90.0) * Math.PI) / 180.0)) + ISO.y;   // need negative because y axis is inverted
+                                                                                                         // THIS WORKS!
+
+
+
+                   /*
+
+                        if (PATIENTORIENTATION == "HeadFirstSupine")
                         {
-                            ProgOutput.AppendText(Environment.NewLine);
-                            ProgOutput.AppendText("Control Point " + point.Index + "/" + PC.Count);
-                        }
-
-                            //  MessageBox.Show("Control Point count: " + TL + ")");
-                             // MessageBox.Show("Gantry ANGLE :  " + ActGantryAngle + "  ");
-                            //  MessageBox.Show("couch ANGLE :  " + CouchEndAngle + "  ");
-
-                            //  MessageBox.Show("real couch ANGLE :  " + realangle + "  ");
-
-                            VVector APISOURCE = beam.GetSourceLocation(ActGantryAngle);  // negative Y
-                           // MessageBox.Show("SOURCE (already transformed by API): (" + APISOURCE.x + " ," + APISOURCE.y + " ," + APISOURCE.z + ")");
-
-                            /*  So, the issue with the Source position is that it actually does change in accordance with the couch angle,
-                             *  in other words, the position returned by the source location method has already had a coordinate transformation
-                             *  performed on it so that it is in the coordinate system of the patient's image. And it is in the Eclipse coord. system.
-                             *  
-                             *  Because the gantry center point and other points of the gantry need to first be constructed with everything at couch zero,
-                             *  the position of the Source at couch zero needs to be determined, otherwise the gantrycenter point calculated from the source can be wrong,
-                             *  because it may operate on the wrong position components (because it assumes the couch is at zero). 
-                             *  
-                             *  It is safer to calculate the position of all the gantry points as if they were at couch zero first, and then do a coord. transform for the couch angle.
-                             *  
-                             *  Anyway, in order to find the correct position of the gantry center point we need to find the couch zero position of source, using the following equation.
-                             */
 
                             myZ = ISO.z;
                             myX = 1000 * Math.Cos((((ActGantryAngle - 90.0) * Math.PI) / 180.0)) + ISO.x;    // - 90 degrees is because the polar coordinate system has 0 degrees on the right side
                             myY = 1000 * Math.Sin((((-ActGantryAngle - 90.0) * Math.PI) / 180.0)) + ISO.y;   // need negative because y axis is inverted
-                            // THIS WORKS!
+                                                                                                             // THIS WORKS!
 
-                            VVector mySOURCE = new VVector(myX, myY, myZ);
+                        }
+                        if (PATIENTORIENTATION == "HeadFirstProne")
+                        {
+                            ISO.x = -ISO.x;
+                            ISO.y = -ISO.y;
+                            myZ = ISO.z;
+                            myX = 1000 * Math.Cos((((ActGantryAngle - 90.0) * Math.PI) / 180.0)) + ISO.x;    // - 90 degrees is because the polar coordinate system has 0 degrees on the right side
+                            myY = 1000 * Math.Sin((((ActGantryAngle - 90.0) * Math.PI) / 180.0)) + ISO.y;   // need negative because y axis is inverted
+
+                        }
+
+                */
+
+
+                        VVector mySOURCE = new VVector(myX, myY, myZ);
 
                            // MessageBox.Show("mySOURCE: (" + mySOURCE.x + " ," + mySOURCE.y + " ," + mySOURCE.z + ")");
 
@@ -1437,17 +1498,18 @@ namespace VMS.TPS
                                 }
                             }
 
-                            // MessageBox.Show("backedge after transform is: (" + BACKEDGE.x + " ," + BACKEDGE.y + " ," + BACKEDGE.z + ")");
-                            // MessageBox.Show("frontedge after transform is: (" + FRONTEDGE.x + " ," + FRONTEDGE.y + " ," + FRONTEDGE.z + ")");
-                            // MessageBox.Show("leftedge after transform is: (" + LEFTEDGE.x + " ," + LEFTEDGE.y + " ," + LEFTEDGE.z + ")");
-                            // MessageBox.Show("rightedge after transform is: (" + RIGHTEDGE.x + " ," + RIGHTEDGE.y + " ," + RIGHTEDGE.z + ")");
+                        // MessageBox.Show("backedge after transform is: (" + BACKEDGE.x + " ," + BACKEDGE.y + " ," + BACKEDGE.z + ")");
+                        // MessageBox.Show("frontedge after transform is: (" + FRONTEDGE.x + " ," + FRONTEDGE.y + " ," + FRONTEDGE.z + ")");
+                        // MessageBox.Show("leftedge after transform is: (" + LEFTEDGE.x + " ," + LEFTEDGE.y + " ," + LEFTEDGE.z + ")");
+                        // MessageBox.Show("rightedge after transform is: (" + RIGHTEDGE.x + " ," + RIGHTEDGE.y + " ," + RIGHTEDGE.z + ")");
 
-                            Vector3d Ri = new Vector3d(RIGHTEDGE.x, RIGHTEDGE.y, RIGHTEDGE.z);  //0           5     9    13
-                            Vector3d Le = new Vector3d(LEFTEDGE.x, LEFTEDGE.y, LEFTEDGE.z);      //1          6     10   14
-                            Vector3d Ba = new Vector3d(BACKEDGE.x, BACKEDGE.y, BACKEDGE.z);      //2          7     11   15
-                            Vector3d Fr = new Vector3d(FRONTEDGE.x, FRONTEDGE.y, FRONTEDGE.z);    //3         8     12   16
-                            Vector3d Ce = new Vector3d(gantrycenter.x, gantrycenter.y, gantrycenter.z);   //4
+                        Vector3d Ri = new Vector3d(RIGHTEDGE.x, RIGHTEDGE.y, RIGHTEDGE.z);  //0           5     9    13
+                        Vector3d Le = new Vector3d(LEFTEDGE.x, LEFTEDGE.y, LEFTEDGE.z);      //1          6     10   14
+                        Vector3d Ba = new Vector3d(BACKEDGE.x, BACKEDGE.y, BACKEDGE.z);      //2          7     11   15
+                        Vector3d Fr = new Vector3d(FRONTEDGE.x, FRONTEDGE.y, FRONTEDGE.z);    //3         8     12   16
+                        Vector3d Ce = new Vector3d(gantrycenter.x, gantrycenter.y, gantrycenter.z);   //4
 
+                           
                         // MessageBox.Show("Trig");
 
                         List<Index3i> Grangle = new List<Index3i>();
@@ -1520,6 +1582,7 @@ namespace VMS.TPS
                         zaxisgd.x = zaxisgd_xp;
                         zaxisgd.z = zaxisgd_zp;
 
+
                         if (ActGantryAngle > 180.0)
                         {
                             anglebetweengantrynormals = -1 * anglebetweengantrynormals;
@@ -1564,7 +1627,7 @@ namespace VMS.TPS
                                 if (diskgantryspatial.TestIntersection(CouchSurfSpatial) == true)
                                 {
                                     // MessageBox.Show("gspatial / couch surface collision");
-                                    collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(ActGantryAngle, 1, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distpoint = "Intersection with Couch", pbodyalert = closebody });
+                                    collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(ActGantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distpoint = "Intersection with Couch", pbodyalert = closebody });
                                 }
                             }
 
@@ -1573,7 +1636,7 @@ namespace VMS.TPS
                                 if (diskgantryspatial.TestIntersection(PCouchInteriorSpatial) == true)
                                 {
                                     // MessageBox.Show("gspatial / couch interior collision");
-                                    collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(ActGantryAngle, 1, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distpoint = "Intersection with Couch.", pbodyalert = closebody });
+                                    collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(ActGantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distpoint = "Intersection with Couch.", pbodyalert = closebody });
                                 }
                             }
 
@@ -1582,7 +1645,7 @@ namespace VMS.TPS
                                 if (diskgantryspatial.TestIntersection(PProne_Brst_BoardSpatial) == true)
                                 {
                                     // MessageBox.Show("gspatial / Prone Breast Board collision");
-                                    collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(ActGantryAngle, 1, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distpoint = "Intersection with Prone Breast Board.", pbodyalert = closebody });
+                                    collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(ActGantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distpoint = "Intersection with Prone Breast Board.", pbodyalert = closebody });
                                 }
                             }
 
@@ -1629,7 +1692,7 @@ namespace VMS.TPS
                                     
                                     if(coli == true)
                                     {
-                                        collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(ActGantryAngle, 1, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distpoint = "Intersection with patient bounding box.", pbodyalert = closebody });
+                                        collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(ActGantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distpoint = "Intersection with patient bounding box.", pbodyalert = closebody });
                                     }   
 
                             }                  
