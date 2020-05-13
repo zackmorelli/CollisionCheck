@@ -1065,9 +1065,9 @@ namespace VMS.TPS
 
                     }
 
-                     MessageBox.Show("uXISOshift is at: " + uXISOshift );
-                     MessageBox.Show("uYISOshift point is at: " + uYISOshift);
-                     MessageBox.Show("uZISOshift point is at: " + uZISOshift);
+                 //    MessageBox.Show("uXISOshift is at: " + uXISOshift );
+                  //   MessageBox.Show("uYISOshift point is at: " + uYISOshift);
+                 //    MessageBox.Show("uZISOshift point is at: " + uZISOshift);
 
 
                     DMeshAABBTree3 spatial = BOXMAKER(PATIENTORIENTATION, findCouchSurf, findCouchInterior, findProneBrstBoard, Body, CouchSurface, CouchInterior, Prone_Brst_Board, bodyloc, ht, uXISOshift, uYISOshift, uZISOshift , ProgOutput, plan, image);
