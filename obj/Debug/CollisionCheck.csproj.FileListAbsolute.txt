@@ -12,3 +12,8 @@ C:\prog\CollisionCheck\CollisionCheck\obj\Debug\CollisionCheck.csproj.CopyComple
 C:\prog\CollisionCheck\CollisionCheck\obj\Debug\CollisionCheck.esapi.dll
 C:\prog\CollisionCheck\CollisionCheck\obj\Debug\CollisionCheck.esapi.pdb
 C:\prog\CollisionCheck\CollisionCheck\obj\Debug\CollisionCheck.csprojAssemblyReference.cache
+C:\prog\CollisionCheck\CollisionCheck\bin\Debug\3DRender.exe
+C:\prog\CollisionCheck\CollisionCheck\bin\Debug\HelixToolkit.Wpf.dll
+C:\prog\CollisionCheck\CollisionCheck\bin\Debug\3DRender.pdb
+C:\prog\CollisionCheck\CollisionCheck\bin\Debug\3DRender.exe.config
+C:\prog\CollisionCheck\CollisionCheck\bin\Debug\HelixToolkit.Wpf.xml

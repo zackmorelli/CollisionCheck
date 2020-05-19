@@ -38,6 +38,7 @@
     </Reference>
     <Reference Include="Microsoft.Build" />
     <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
@@ -79,6 +80,12 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\3DRender\3DRender.csproj">
+      <Project>{C8791797-FE0A-4CB1-9A6C-149D9F513787}</Project>
+      <Name>3DRender</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

@@ -192,11 +192,11 @@ namespace CollisionCheck
             double ht = Convert.ToDouble(height);
            
             ProgOutput.AppendText(Environment.NewLine);
-            ProgOutput.AppendText("Collision Analysis Initiated");
+            ProgOutput.AppendText("Program starting...");
 
             List<Script.CollisionAlert> output = Script.CollisionCheck(Plan, bodyloc, ht, ProgOutput, image);
 
-            MessageBox.Show("Collision anlaysis completed");
+            MessageBox.Show("Collision analysis completed");
             MessageBox.Show("Collisions detected: " + output.Count);
 
             if (output.Count > 0)

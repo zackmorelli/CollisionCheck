@@ -19,6 +19,8 @@ using System.Runtime.InteropServices;
 using VMS.TPS.Common.Model.API;
 using VMS.TPS.Common.Model.Types;
 using CollisionCheck;
+using _3DRender;
+
 
 
 /*
@@ -138,7 +140,7 @@ namespace VMS.TPS
             //  MessageBox.Show("Trig 1");
             if (context.Patient == null)
             {
-                MessageBox.Show("Please load a patient with a treatment plan before running this script!");
+                System.Windows.Forms.MessageBox.Show("Please load a patient with a treatment plan before running this script!");
                 return;
             }
 
@@ -179,7 +181,7 @@ namespace VMS.TPS
             }
         }
 
-        public static DMeshAABBTree3 BOXMAKER (string PATEINTORIENTATION, bool findCouchSurf, bool findCouchInterior, bool findProneBrstBoard, Structure Body, Structure CouchSurface, Structure CouchInterior, Structure Prone_Brst_Board, string bodyloc, double ht, double uXISOshift, double uYISOshift, double uZISOshift, TextBox ProgOutput, PlanSetup plan, Image image)
+        public static DMeshAABBTree3 BOXMAKER (string PATEINTORIENTATION, bool findCouchSurf, bool findCouchInterior, bool findProneBrstBoard, Structure Body, Structure CouchSurface, Structure CouchInterior, Structure Prone_Brst_Board, string bodyloc, double ht, double uXISOshift, double uYISOshift, double uZISOshift, TextBox ProgOutput, PlanSetup plan, Image image, List<WriteMesh> tempbeam)
         {
 
             ht = ht * 10.0;    //convert from cm to mm.   IT is in mm
@@ -189,6 +191,9 @@ namespace VMS.TPS
             Vector3d ZaxisPatOrientRot = new Vector3d(0, 0, 1);
 
             // makes mesh out of patient body contour
+            ProgOutput.AppendText(Environment.NewLine);
+            ProgOutput.AppendText("Building Body Contour mesh... ");
+
             List<Vector3d> pvl = new List<Vector3d>();
             Vector3d pv = new Vector3d();
 
@@ -253,7 +258,9 @@ namespace VMS.TPS
                 MeshTransforms.Translate(PBodyContour, uXISOshift, uYISOshift, uZISOshift);
             }
 
-            IOWriteResult result24 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\TestBolus\PBODY.stl", new List<WriteMesh>() { new WriteMesh(PBodyContour) }, WriteOptions.Defaults);
+            IOWriteResult result24 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\DiskGantry\PBODY.stl", new List<WriteMesh>() { new WriteMesh(PBodyContour) }, WriteOptions.Defaults);
+
+            tempbeam.Add(new WriteMesh(PBodyContour));
 
             PBodyContourSpatial = new DMeshAABBTree3(PBodyContour);
             PBodyContourSpatial.Build();
@@ -261,6 +268,10 @@ namespace VMS.TPS
             if (findCouchSurf == true)
             {
                 // -------------------------------------------------------------------- makes mesh out of Couch surface
+
+                ProgOutput.AppendText(Environment.NewLine);
+                ProgOutput.AppendText("Building Couch Surface mesh... ");
+
                 List<Vector3d> cspvl = new List<Vector3d>();
                 Vector3d cspv = new Vector3d();
 
@@ -321,7 +332,8 @@ namespace VMS.TPS
                 }
 
 
-                IOWriteResult result31 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\TestBolus\CouchSurface.stl", new List<WriteMesh>() { new WriteMesh(PCouchsurf) }, WriteOptions.Defaults);
+                IOWriteResult result31 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\DiskGantry\CouchSurface.stl", new List<WriteMesh>() { new WriteMesh(PCouchsurf) }, WriteOptions.Defaults);
+                tempbeam.Add(new WriteMesh(PCouchsurf));
 
                 CouchSurfSpatial = new DMeshAABBTree3(PCouchsurf);
                 CouchSurfSpatial.Build();
@@ -331,6 +343,9 @@ namespace VMS.TPS
             if (findCouchInterior == true)
             {
                 // ------------------------------------------------------- makes mesh out of Couch interior
+                ProgOutput.AppendText(Environment.NewLine);
+                ProgOutput.AppendText("Building Couch interior mesh... ");
+
                 List<Vector3d> cipvl = new List<Vector3d>();
                 Vector3d cipv = new Vector3d();
 
@@ -390,7 +405,8 @@ namespace VMS.TPS
                     MeshTransforms.Translate(PCouchInterior, uXISOshift, -uYISOshift, uZISOshift);
                 }
 
-                IOWriteResult result30 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\TestBolus\CouchInterior.stl", new List<WriteMesh>() { new WriteMesh(PCouchInterior) }, WriteOptions.Defaults);
+                IOWriteResult result30 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\DiskGantry\CouchInterior.stl", new List<WriteMesh>() { new WriteMesh(PCouchInterior) }, WriteOptions.Defaults);
+                tempbeam.Add(new WriteMesh(PCouchInterior));
 
                 PCouchInteriorSpatial = new DMeshAABBTree3(PCouchInterior);
                 PCouchInteriorSpatial.Build();
@@ -399,6 +415,9 @@ namespace VMS.TPS
             if (findProneBrstBoard == true)
             {
                 // ------------------------------------------------------- makes mesh out of Prone Breast Board
+                ProgOutput.AppendText(Environment.NewLine);
+                ProgOutput.AppendText("Building Prone Breast Board mesh... ");
+
                 List<Vector3d> bbpvl = new List<Vector3d>();
                 Vector3d bbpv = new Vector3d();
 
@@ -458,7 +477,9 @@ namespace VMS.TPS
                     MeshTransforms.Translate(PProne_Brst_Board, uXISOshift, -uYISOshift, uZISOshift);
                 }
 
-                IOWriteResult result36 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\TestBolus\ProneBreastBoard.stl", new List<WriteMesh>() { new WriteMesh(PProne_Brst_Board) }, WriteOptions.Defaults);
+                IOWriteResult result36 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\DiskGantry\ProneBreastBoard.stl", new List<WriteMesh>() { new WriteMesh(PProne_Brst_Board) }, WriteOptions.Defaults);
+                tempbeam.Add(new WriteMesh(PProne_Brst_Board));
+
 
                 PProne_Brst_BoardSpatial = new DMeshAABBTree3(PProne_Brst_Board);
                 PProne_Brst_BoardSpatial.Build();
@@ -509,7 +530,7 @@ namespace VMS.TPS
             //  MessageBox.Show("PATBOX SIZE is: (" + BOX.SizeX + " ," + BOX.SizeY + " ," + BOX.SizeZ + ")");
 
             ProgOutput.AppendText(Environment.NewLine);
-            ProgOutput.AppendText("Starting PATBOX Construction");
+            ProgOutput.AppendText("Building extended patient bounding box ...");
 
            // MessageBox.Show("ht is: " + ht);
 
@@ -855,9 +876,6 @@ namespace VMS.TPS
 
            // MessageBox.Show("number of triangles: " + cbht);
 
-            ProgOutput.AppendText(Environment.NewLine);
-            ProgOutput.AppendText("PATBOX Construction Done");
-
             //  DMesh3 PATBOX2 = DMesh3Builder.Build(IEnumerable<Vector3d> vertices, triangles);
 
             //PATBOX.CheckValidity();
@@ -869,6 +887,9 @@ namespace VMS.TPS
             DMesh3 PATBOXCOPY = PATBOX;
 
             // use the remesher to add triangles/vertices to mesh based off of the simple box mesh
+
+            ProgOutput.AppendText(Environment.NewLine);
+            ProgOutput.AppendText("Remeshing patient bounding box... ");
 
             Remesher R = new Remesher(PATBOX);
             MeshConstraintUtil.PreserveBoundaryLoops(R);
@@ -883,8 +904,6 @@ namespace VMS.TPS
                 R.BasicRemeshPass();
             }
 
-            ProgOutput.AppendText(Environment.NewLine);
-            ProgOutput.AppendText("PATBOX Remeshing Done");
 
             // Remeshing settings aren't perfect, bu they are fairly dialed in
 
@@ -908,13 +927,20 @@ namespace VMS.TPS
             // probably is a real life setup thing for prone breast plans for example
 
 
-            IOWriteResult result3 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\TestBolus\PATBOXremeshed.stl", new List<WriteMesh>() { new WriteMesh(PATBOX) }, WriteOptions.Defaults);
+            IOWriteResult result3 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\DiskGantry\PATBOXremeshed.stl", new List<WriteMesh>() { new WriteMesh(PATBOX) }, WriteOptions.Defaults);
+            tempbeam.Add(new WriteMesh(PATBOX));
 
             DMeshAABBTree3 spatial = new DMeshAABBTree3(PATBOX);
             spatial.Build();
 
             return spatial;
         }
+
+ 
+
+
+
+
 
 
         public static List<CollisionAlert> CollisionCheck(PlanSetup plan, string bodyloc, double ht, TextBox ProgOutput, Image image)
@@ -1016,13 +1042,15 @@ namespace VMS.TPS
                 }
 
                 // ANGLES ARE IN DEGREES
+                List<double> GAngleList = new List<double>();
                 ControlPointCollection PC = beam.ControlPoints;
                 double CouchStartAngle = PC[0].PatientSupportAngle;
                 double CouchEndAngle = PC[PC.Count - 1].PatientSupportAngle;            // count - 1 is the end becuase the index starts at 0
+                List<WriteMesh> tempbeam = new List<WriteMesh>();
 
                 if (CouchStartAngle != CouchEndAngle)
                 {
-                    MessageBox.Show("WARNING: The patient couch has a different rotation angle at the end of beam " + beam.Id + " in plan " + plan.Id + " than what the beam starts with.");
+                    System.Windows.Forms.MessageBox.Show("WARNING: The patient couch has a different rotation angle at the end of beam " + beam.Id + " in plan " + plan.Id + " than what the beam starts with.");
                     return collist;
                 }
                 else if (CouchStartAngle == CouchEndAngle)
@@ -1077,7 +1105,7 @@ namespace VMS.TPS
                  //    MessageBox.Show("uZISOshift point is at: " + uZISOshift);
 
 
-                    DMeshAABBTree3 spatial = BOXMAKER(PATIENTORIENTATION, findCouchSurf, findCouchInterior, findProneBrstBoard, Body, CouchSurface, CouchInterior, Prone_Brst_Board, bodyloc, ht, uXISOshift, uYISOshift, uZISOshift , ProgOutput, plan, image);
+                    DMeshAABBTree3 spatial = BOXMAKER(PATIENTORIENTATION, findCouchSurf, findCouchInterior, findProneBrstBoard, Body, CouchSurface, CouchInterior, Prone_Brst_Board, bodyloc, ht, uXISOshift, uYISOshift, uZISOshift , ProgOutput, plan, image, tempbeam);
 
                    // MessageBox.Show("Isocenter point is at: (" + ISO.x + " ," + ISO.y + " ," + ISO.z + ")");
                    // MessageBox.Show("Image origin is at: (" + Origin.x + " ," + Origin.y + " ," + Origin.z + ")");
@@ -1086,8 +1114,8 @@ namespace VMS.TPS
 
                     // source position creation
                     double myZ = 0.0;
-                            double myX = 0.0;
-                            double myY = 0.0;
+                    double myX = 0.0;
+                    double myY = 0.0;
                 
                             double ANGLE = 0.0;
                             double Gangle = 0.0;
@@ -1119,16 +1147,20 @@ namespace VMS.TPS
                             double Leftztrans = 0.0;
                             double Rightztrans = 0.0;
                     DMeshAABBTree3.IntersectionsQueryResult intersectlist = new DMeshAABBTree3.IntersectionsQueryResult();
-                    double GantryAngle = 5000.5;
-
+                    //  double GantryAngle = 5000.5;
 
 
                     if (beam.MLCPlanType == MLCPlanType.Static)
                     {
-                        ProgOutput.AppendText(Environment.NewLine);
-                        ProgOutput.AppendText("This is a static MLC beam with no control points. Attempting to get Gantry angle for this beam from the ARIA database ... ");
+                        string line = null;
+                        double GantryStartAngle = 500.0;
+                        double GantryEndAngle = 500.0;
+                        string ArcDirection = null;
 
-                        ProcessStartInfo processinfo = new ProcessStartInfo(@"\\wvvrnimbp01ss\va_data$\filedata\ProgramData\Vision\Stand-alone Programs\CollisionCheck_InfoRetrieval\CollisionCheck_InfoRetrieval.exe", plan.Id + " " + plan.Course.Id + " " + plan.Course.Patient.Id + " " + beam.Id);        // path name of the Collision retrieval program
+                        ProgOutput.AppendText(Environment.NewLine);
+                        ProgOutput.AppendText("This is a static MLC beam with no control points. Attempting to get Gantry information for this beam from the ARIA database (this might take a minute)... ");
+
+                        ProcessStartInfo processinfo = new ProcessStartInfo(@"\\wvvrnimbp01ss\va_data$\filedata\ProgramData\Vision\Stand-alone Programs\CollisionCheck_InfoRetrieval\CollisionCheck_InfoRetrieval.exe", plan.Course.Patient.Id + " " + plan.Course.Id + " " + beam.Id + " " + plan.Id);        // path name of the Collision retrieval program
                         processinfo.UseShellExecute = false;
                         processinfo.ErrorDialog = false;
                         processinfo.RedirectStandardOutput = true;
@@ -1142,43 +1174,95 @@ namespace VMS.TPS
                         GantryAngleRetrieve.WaitForExit();
 
                         ProgOutput.AppendText(Environment.NewLine);
-                        ProgOutput.AppendText("The ARIA Gantry angle for this beam is: " + GantryAngle);
-                        MessageBox.Show("ARIa gantry angle: " + GantryAngle);
+                        ProgOutput.AppendText("Aria retrieval complete! Building list of gantry angles...");
 
-                        GantryAngle = Convert.ToDouble(GantryAngleRetrieveOutput.ReadLine());
+                        ArcDirection = GantryAngleRetrieveOutput.ReadLine();
+                        GantryStartAngle = Convert.ToDouble(GantryAngleRetrieveOutput.ReadLine());
+                        GantryEndAngle = Convert.ToDouble(GantryAngleRetrieveOutput.ReadLine());
+
+                        if (ArcDirection == "NONE")
+                        {
+                            GAngleList.Add(GantryStartAngle);
+                        }
+                        else if (ArcDirection == "CW")
+                        {
+                            double tempangle = GantryStartAngle;
+                            GAngleList.Add(GantryStartAngle);
+
+                            while (tempangle != GantryEndAngle)
+                            {
+                                tempangle++;
+
+                                if (tempangle == 360)
+                                {
+                                    tempangle = 0;
+                                }
+
+                                GAngleList.Add(tempangle);
+                            }
+                        }
+                        else if (ArcDirection == "CC")
+                        {
+                            double tempangle = GantryStartAngle;
+                            GAngleList.Add(GantryStartAngle);
+
+                            while (tempangle != GantryEndAngle)
+                            {
+                                tempangle--;
+
+                                if (tempangle == -1)
+                                {
+                                    tempangle = 359;
+                                }
+
+                                GAngleList.Add(tempangle);
+                            }
+                        }
+
                     }
                     else
                     {
+                        ProgOutput.AppendText(Environment.NewLine);
+                        ProgOutput.AppendText("Dynamic MLC plan. Building list of gantry angles from control points ... ");
+
                         foreach (ControlPoint point in PC)
                         {
-
-                            GantryAngle = point.GantryAngle;
+                            GAngleList.Add(point.GantryAngle);
 
                             //  if(PATIENTORIENTATION == "HeadFirstProne")
                             //  {
                             //      GantryAngle = point.GantryAngle - 180.0;
                             //  }
 
-                            Math.DivRem(point.Index, 6, out int res);
+                            // Math.DivRem(point.Index, 6, out int res);
 
                             //if (point.Index == 1 || point.Index == PC.Count || res == 0)
                             //{
 
-                            if (res == 0)
-                            {
-                                ProgOutput.AppendText(Environment.NewLine);
-                                ProgOutput.AppendText("Control Point " + point.Index + "/" + PC.Count);
-                            }
+                            //   if (res == 0)
+                            //  {
+                            //      ProgOutput.AppendText(Environment.NewLine);
+                            //     ProgOutput.AppendText("Control Point " + point.Index + "/" + PC.Count);
+                            // }
 
                         }
+                    }
+
+
+                        foreach (double GantryAngle in GAngleList)
+                        {
                             //  MessageBox.Show("Control Point count: " + TL + ")");
                             // MessageBox.Show("Gantry ANGLE :  " + GantryAngle + "  ");
                             //  MessageBox.Show("couch ANGLE :  " + CouchEndAngle + "  ");
 
+                           // ProgOutput.AppendText(Environment.NewLine);
+                            //ProgOutput.AppendText("Conducting Collision analysis and writing STL files to disk...");
+
+
                             //  MessageBox.Show("real couch ANGLE :  " + realangle + "  ");
 
                             VVector APISOURCE = beam.GetSourceLocation(GantryAngle);  // negative Y
-                                                                                         // MessageBox.Show("SOURCE (already transformed by API): (" + APISOURCE.x + " ," + APISOURCE.y + " ," + APISOURCE.z + ")");
+                                                                                      // MessageBox.Show("SOURCE (already transformed by API): (" + APISOURCE.x + " ," + APISOURCE.y + " ," + APISOURCE.z + ")");
 
                             /*  So, the issue with the Source position is that it actually does change in accordance with the couch angle,
                              *  in other words, the position returned by the source location method has already had a coordinate transformation
@@ -1200,7 +1284,7 @@ namespace VMS.TPS
                             myZ = ISO.z;
                             myX = 1000 * Math.Cos((((GantryAngle - 90.0) * Math.PI) / 180.0)) + ISO.x;    // - 90 degrees is because the polar coordinate system has 0 degrees on the right side
                             myY = 1000 * Math.Sin((((-GantryAngle - 90.0) * Math.PI) / 180.0)) + ISO.y;   // need negative because y axis is inverted
-                                                                                                             // THIS WORKS!
+                                                                                                          // THIS WORKS!
 
 
 
@@ -1628,8 +1712,10 @@ namespace VMS.TPS
                             MeshTransforms.Rotate(diskgantry, ISOV, diskrot);
 
                             IOWriteResult result42 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\DiskGantry\diskgantry" + beam.Id + GantryAngle + ".stl", new List<WriteMesh>() { new WriteMesh(diskgantry) }, WriteOptions.Defaults);
+                            tempbeam.Add(new WriteMesh(diskgantry));
 
-                           // IOWriteResult result5 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\SquareGantry\Gantry" + beam.Id + GantryAngle + ".stl", new List<WriteMesh>() { new WriteMesh(GANTRY) }, WriteOptions.Defaults);
+
+                            // IOWriteResult result5 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\SquareGantry\Gantry" + beam.Id + GantryAngle + ".stl", new List<WriteMesh>() { new WriteMesh(GANTRY) }, WriteOptions.Defaults);
 
                             // MessageBox.Show("Trig8");
 
@@ -1644,8 +1730,8 @@ namespace VMS.TPS
 
                             //IOWriteResult result = StandardMeshWriter.WriteFile(@"\\Wvvrnimbp01ss\va_data$\filedata\ProgramData\Vision\PublishedScripts\PATBOX.stl", new List<WriteMesh>() { new WriteMesh(PATBOX) }, WriteOptions.Defaults);
 
-                            DMeshAABBTree3 GANTRYspatial = new DMeshAABBTree3(GANTRY);
-                            GANTRYspatial.Build();
+                            //  DMeshAABBTree3 GANTRYspatial = new DMeshAABBTree3(GANTRY);
+                            //  GANTRYspatial.Build();
 
                             DMeshAABBTree3 diskgantryspatial = new DMeshAABBTree3(diskgantry);
                             diskgantryspatial.Build();
@@ -1818,15 +1904,18 @@ namespace VMS.TPS
 
                             //  MessageBox.Show("PATBOX vert  loop done");
 
-                            //}     // ends index control point counting loop
-                          // ends control point loop   
-                    }   // ends if MLC type is static
-
-                        //  MessageBox.Show("CONTROL POINT loop done");
-
+                        }  // ends gantry angle loop
+                           
                 }    // ends if counch angle start = couch angle end
 
-                    //      MessageBox.Show("COUCH LOOP DONE    ");
+                //      MessageBox.Show("COUCH LOOP DONE    ");
+
+
+                IOWriteResult EVERY = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\DiskGantry\Beam_" + beam.Id + ".stl", tempbeam , WriteOptions.Defaults);
+
+                MainWindow window = new MainWindow(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\DiskGantry\Beam_" + beam.Id + ".stl");
+                window.Show();
+
 
             } // ends beam loop
 
