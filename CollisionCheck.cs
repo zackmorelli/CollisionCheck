@@ -18,6 +18,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using VMS.TPS.Common.Model.API;
 using VMS.TPS.Common.Model.Types;
+using CollisionCheck;
 
 
 /*
@@ -36,6 +37,7 @@ using VMS.TPS.Common.Model.Types;
 
 namespace VMS.TPS
 {
+
     public class Script  // creates a class called Script within the VMS.TPS Namesapce
     {
 
@@ -65,7 +67,7 @@ namespace VMS.TPS
         public static DMesh3 PProne_Brst_Board = new DMesh3();
         public static DMeshAABBTree3 PProne_Brst_BoardSpatial;
 
-        
+
         // Declaration space for all the functions which make up the program.
         // Execution begins with the "Execute" function.
 
@@ -113,6 +115,11 @@ namespace VMS.TPS
             return distance;
         }
 
+  
+
+       
+
+    
 
         public void Execute(ScriptContext context)     // PROGRAM START - sending a return to Execute will end the program
         {
@@ -138,7 +145,7 @@ namespace VMS.TPS
             System.Windows.Forms.Application.EnableVisualStyles();
 
             //Starts GUI 
-            System.Windows.Forms.Application.Run(new CollisionCheck.GUI(Plans, patient, image));
+            System.Windows.Forms.Application.Run(new GUI(Plans, patient, image));
 
             return;
         }
@@ -1112,90 +1119,118 @@ namespace VMS.TPS
                             double Leftztrans = 0.0;
                             double Rightztrans = 0.0;
                     DMeshAABBTree3.IntersectionsQueryResult intersectlist = new DMeshAABBTree3.IntersectionsQueryResult();
+                    double GantryAngle = 5000.5;
 
 
-                    foreach (ControlPoint point in PC)
+
+                    if (beam.MLCPlanType == MLCPlanType.Static)
                     {
+                        ProgOutput.AppendText(Environment.NewLine);
+                        ProgOutput.AppendText("This is a static MLC beam with no control points. Attempting to get Gantry angle for this beam from the ARIA database ... ");
 
-                        double ActGantryAngle = point.GantryAngle;
+                        ProcessStartInfo processinfo = new ProcessStartInfo(@"\\wvvrnimbp01ss\va_data$\filedata\ProgramData\Vision\Stand-alone Programs\CollisionCheck_InfoRetrieval\CollisionCheck_InfoRetrieval.exe", plan.Id + " " + plan.Course.Id + " " + plan.Course.Patient.Id + " " + beam.Id);        // path name of the Collision retrieval program
+                        processinfo.UseShellExecute = false;
+                        processinfo.ErrorDialog = false;
+                        processinfo.RedirectStandardOutput = true;
 
-                      //  if(PATIENTORIENTATION == "HeadFirstProne")
-                      //  {
-                      //      ActGantryAngle = point.GantryAngle - 180.0;
-                      //  }
+                        Process GantryAngleRetrieve = new Process();
+                        GantryAngleRetrieve.StartInfo = processinfo;
 
-                             Math.DivRem(point.Index, 6, out int res);
+                        bool processstarted = GantryAngleRetrieve.Start();
 
-                        //if (point.Index == 1 || point.Index == PC.Count || res == 0)
-                        //{
+                        StreamReader GantryAngleRetrieveOutput = GantryAngleRetrieve.StandardOutput;
+                        GantryAngleRetrieve.WaitForExit();
 
-                          if (res == 0)
-                          {
-                             ProgOutput.AppendText(Environment.NewLine);
-                             ProgOutput.AppendText("Control Point " + point.Index + "/" + PC.Count);
-                          }
+                        ProgOutput.AppendText(Environment.NewLine);
+                        ProgOutput.AppendText("The ARIA Gantry angle for this beam is: " + GantryAngle);
+                        MessageBox.Show("ARIa gantry angle: " + GantryAngle);
 
-
-                        //  MessageBox.Show("Control Point count: " + TL + ")");
-                        // MessageBox.Show("Gantry ANGLE :  " + ActGantryAngle + "  ");
-                        //  MessageBox.Show("couch ANGLE :  " + CouchEndAngle + "  ");
-
-                        //  MessageBox.Show("real couch ANGLE :  " + realangle + "  ");
-
-                        VVector APISOURCE = beam.GetSourceLocation(ActGantryAngle);  // negative Y
-                                                                                     // MessageBox.Show("SOURCE (already transformed by API): (" + APISOURCE.x + " ," + APISOURCE.y + " ," + APISOURCE.z + ")");
-
-                        /*  So, the issue with the Source position is that it actually does change in accordance with the couch angle,
-                         *  in other words, the position returned by the source location method has already had a coordinate transformation
-                         *  performed on it so that it is in the coordinate system of the patient's image. And it is in the Eclipse coord. system.
-                         *  
-                         *  Because the gantry center point and other points of the gantry need to first be constructed with everything at couch zero,
-                         *  the position of the Source at couch zero needs to be determined, otherwise the gantrycenter point calculated from the source can be wrong,
-                         *  because it may operate on the wrong position components (because it assumes the couch is at zero). 
-                         *  
-                         *  It is safer to calculate the position of all the gantry points as if they were at couch zero first, and then do a coord. transform for the couch angle.
-                         *  
-                         *  Anyway, in order to find the correct position of the gantry center point we need to find the couch zero position of source, using the following equation.
-                         */
-
-                        // need to come up with something to set polarity ISO.x and ISO.y based on patient orientation and where the ISO is.
-                        // ISO coords can be negative !!!!!
-
-
-                        myZ = ISO.z;
-                        myX = 1000 * Math.Cos((((ActGantryAngle - 90.0) * Math.PI) / 180.0)) + ISO.x;    // - 90 degrees is because the polar coordinate system has 0 degrees on the right side
-                        myY = 1000 * Math.Sin((((-ActGantryAngle - 90.0) * Math.PI) / 180.0)) + ISO.y;   // need negative because y axis is inverted
-                                                                                                         // THIS WORKS!
-
-
-
-                   /*
-
-                        if (PATIENTORIENTATION == "HeadFirstSupine")
+                        GantryAngle = Convert.ToDouble(GantryAngleRetrieveOutput.ReadLine());
+                    }
+                    else
+                    {
+                        foreach (ControlPoint point in PC)
                         {
 
+                            GantryAngle = point.GantryAngle;
+
+                            //  if(PATIENTORIENTATION == "HeadFirstProne")
+                            //  {
+                            //      GantryAngle = point.GantryAngle - 180.0;
+                            //  }
+
+                            Math.DivRem(point.Index, 6, out int res);
+
+                            //if (point.Index == 1 || point.Index == PC.Count || res == 0)
+                            //{
+
+                            if (res == 0)
+                            {
+                                ProgOutput.AppendText(Environment.NewLine);
+                                ProgOutput.AppendText("Control Point " + point.Index + "/" + PC.Count);
+                            }
+
+                        }
+                            //  MessageBox.Show("Control Point count: " + TL + ")");
+                            // MessageBox.Show("Gantry ANGLE :  " + GantryAngle + "  ");
+                            //  MessageBox.Show("couch ANGLE :  " + CouchEndAngle + "  ");
+
+                            //  MessageBox.Show("real couch ANGLE :  " + realangle + "  ");
+
+                            VVector APISOURCE = beam.GetSourceLocation(GantryAngle);  // negative Y
+                                                                                         // MessageBox.Show("SOURCE (already transformed by API): (" + APISOURCE.x + " ," + APISOURCE.y + " ," + APISOURCE.z + ")");
+
+                            /*  So, the issue with the Source position is that it actually does change in accordance with the couch angle,
+                             *  in other words, the position returned by the source location method has already had a coordinate transformation
+                             *  performed on it so that it is in the coordinate system of the patient's image. And it is in the Eclipse coord. system.
+                             *  
+                             *  Because the gantry center point and other points of the gantry need to first be constructed with everything at couch zero,
+                             *  the position of the Source at couch zero needs to be determined, otherwise the gantrycenter point calculated from the source can be wrong,
+                             *  because it may operate on the wrong position components (because it assumes the couch is at zero). 
+                             *  
+                             *  It is safer to calculate the position of all the gantry points as if they were at couch zero first, and then do a coord. transform for the couch angle.
+                             *  
+                             *  Anyway, in order to find the correct position of the gantry center point we need to find the couch zero position of source, using the following equation.
+                             */
+
+                            // need to come up with something to set polarity ISO.x and ISO.y based on patient orientation and where the ISO is.
+                            // ISO coords can be negative !!!!!
+
+
                             myZ = ISO.z;
-                            myX = 1000 * Math.Cos((((ActGantryAngle - 90.0) * Math.PI) / 180.0)) + ISO.x;    // - 90 degrees is because the polar coordinate system has 0 degrees on the right side
-                            myY = 1000 * Math.Sin((((-ActGantryAngle - 90.0) * Math.PI) / 180.0)) + ISO.y;   // need negative because y axis is inverted
+                            myX = 1000 * Math.Cos((((GantryAngle - 90.0) * Math.PI) / 180.0)) + ISO.x;    // - 90 degrees is because the polar coordinate system has 0 degrees on the right side
+                            myY = 1000 * Math.Sin((((-GantryAngle - 90.0) * Math.PI) / 180.0)) + ISO.y;   // need negative because y axis is inverted
                                                                                                              // THIS WORKS!
 
-                        }
-                        if (PATIENTORIENTATION == "HeadFirstProne")
-                        {
-                            ISO.x = -ISO.x;
-                            ISO.y = -ISO.y;
-                            myZ = ISO.z;
-                            myX = 1000 * Math.Cos((((ActGantryAngle - 90.0) * Math.PI) / 180.0)) + ISO.x;    // - 90 degrees is because the polar coordinate system has 0 degrees on the right side
-                            myY = 1000 * Math.Sin((((ActGantryAngle - 90.0) * Math.PI) / 180.0)) + ISO.y;   // need negative because y axis is inverted
-
-                        }
-
-                */
 
 
-                        VVector mySOURCE = new VVector(myX, myY, myZ);
+                            /*
 
-                           // MessageBox.Show("mySOURCE: (" + mySOURCE.x + " ," + mySOURCE.y + " ," + mySOURCE.z + ")");
+                                 if (PATIENTORIENTATION == "HeadFirstSupine")
+                                 {
+
+                                     myZ = ISO.z;
+                                     myX = 1000 * Math.Cos((((GantryAngle - 90.0) * Math.PI) / 180.0)) + ISO.x;    // - 90 degrees is because the polar coordinate system has 0 degrees on the right side
+                                     myY = 1000 * Math.Sin((((-GantryAngle - 90.0) * Math.PI) / 180.0)) + ISO.y;   // need negative because y axis is inverted
+                                                                                                                      // THIS WORKS!
+
+                                 }
+                                 if (PATIENTORIENTATION == "HeadFirstProne")
+                                 {
+                                     ISO.x = -ISO.x;
+                                     ISO.y = -ISO.y;
+                                     myZ = ISO.z;
+                                     myX = 1000 * Math.Cos((((GantryAngle - 90.0) * Math.PI) / 180.0)) + ISO.x;    // - 90 degrees is because the polar coordinate system has 0 degrees on the right side
+                                     myY = 1000 * Math.Sin((((GantryAngle - 90.0) * Math.PI) / 180.0)) + ISO.y;   // need negative because y axis is inverted
+
+                                 }
+
+                         */
+
+
+                            VVector mySOURCE = new VVector(myX, myY, myZ);
+
+                            // MessageBox.Show("mySOURCE: (" + mySOURCE.x + " ," + mySOURCE.y + " ," + mySOURCE.z + ")");
 
                             /*
                                 // SOURCE INVERSE COORDINATE SYSTEM TRANSFORMATION FOR COUCH ANGLE 
@@ -1228,36 +1263,36 @@ namespace VMS.TPS
                                 }
                             APISOURCE.x = sourceINVERSExtrans;
                             APISOURCE.z = sourceINVERSEztrans;
-                             */                     
+                             */
                             //  VVector convSOURCE = plan.StructureSet.Image.DicomToUser(SOURCE, plan);
                             // MessageBox.Show("SOURCE : (" + convSOURCE.x + " ," + convSOURCE.y + " ," + convSOURCE.z + ")");
 
                             // this determines the position of gantrycenterpoint (from mySOURCE) at all gantry angles at couch 0 degrees
 
-                            if (ActGantryAngle > 270.0)
+                            if (GantryAngle > 270.0)
                             {
-                                Gangle = 90.0 - (ActGantryAngle - 270.0);
+                                Gangle = 90.0 - (GantryAngle - 270.0);
 
                                 gfxp = 585.0 * Math.Sin((Gangle * Math.PI) / 180.0);
                                 gfyp = 585.0 * Math.Cos((Gangle * Math.PI) / 180.0);
                             }
-                            else if (ActGantryAngle >= 0.0 & ActGantryAngle <= 90.0)
+                            else if (GantryAngle >= 0.0 & GantryAngle <= 90.0)
                             {
-                                Gangle = ActGantryAngle;
+                                Gangle = GantryAngle;
                                 gfxp = 585.0 * Math.Sin((Gangle * Math.PI) / 180.0);
                                 gfyp = 585.0 * Math.Cos((Gangle * Math.PI) / 180.0);
                             }
-                            else if (ActGantryAngle > 90.0 & ActGantryAngle <= 180.0)
+                            else if (GantryAngle > 90.0 & GantryAngle <= 180.0)
                             {
-                                Gangle = 90.0 - (ActGantryAngle - 90.0);
+                                Gangle = 90.0 - (GantryAngle - 90.0);
 
                                 gfxp = 585.0 * Math.Sin((Gangle * Math.PI) / 180.0);
                                 gfyp = 585.0 * Math.Cos((Gangle * Math.PI) / 180.0);
                             }
-                            else if (ActGantryAngle > 180.0 & ActGantryAngle <= 270.0)
+                            else if (GantryAngle > 180.0 & GantryAngle <= 270.0)
                             {
                                 //  MessageBox.Show("Trig 5");
-                                Gangle = ActGantryAngle - 180.0;
+                                Gangle = GantryAngle - 180.0;
 
                                 gfxp = 585.0 * Math.Sin((Gangle * Math.PI) / 180.0);
                                 gfyp = 585.0 * Math.Cos((Gangle * Math.PI) / 180.0);
@@ -1268,25 +1303,25 @@ namespace VMS.TPS
                             // MessageBox.Show("thetap is: " + thetap);
 
                             VVector gantrycenter = mySOURCE;    // this will represent the center of the gantry head's surface once the transforms below are performed
-                                                    // For couch zero degrees
+                                                                // For couch zero degrees
 
-                            if (ActGantryAngle >= 270.0 | (ActGantryAngle >= 0.0 & ActGantryAngle <= 90.0))
+                            if (GantryAngle >= 270.0 | (GantryAngle >= 0.0 & GantryAngle <= 90.0))
                             {
                                 gantrycenter.y = gantrycenter.y + gfyp;
                                 //  MessageBox.Show("gf.y is: " + gf.y);
                             }
-                            else if (ActGantryAngle < 270.0 & ActGantryAngle > 90.0)
+                            else if (GantryAngle < 270.0 & GantryAngle > 90.0)
                             {
                                 gantrycenter.y = gantrycenter.y - gfyp;
                             }
 
                             // this just determines if the original xshift to gf is positive or negative
-                            if (ActGantryAngle >= 0.0 & ActGantryAngle <= 180.0)
+                            if (GantryAngle >= 0.0 & GantryAngle <= 180.0)
                             {
                                 gantrycenter.x = gantrycenter.x - gfxp;
                                 gantryXISOshift = "POS";
                             }
-                            else if (ActGantryAngle > 180.0)
+                            else if (GantryAngle > 180.0)
                             {
                                 gantrycenter.x = gantrycenter.x + gfxp;
                                 gantryXISOshift = "NEG";
@@ -1294,7 +1329,7 @@ namespace VMS.TPS
 
                             VVector origgantrycenter = gantrycenter;
 
-                           // MessageBox.Show("gantrycenter before transform is: (" + gantrycenter.x + " ," + gantrycenter.y + " ," + gantrycenter.z + ")");
+                            // MessageBox.Show("gantrycenter before transform is: (" + gantrycenter.x + " ," + gantrycenter.y + " ," + gantrycenter.z + ")");
                             //gantrycenter now represents the center point of the gantry for all gantry angles at 0 degrees couch angle
                             // a coordinate transformation for couch angle is performed next
                             //once the gantry centerpoint and the patient are in the same coordinate system, the edges of the gantry are found from there.
@@ -1335,7 +1370,7 @@ namespace VMS.TPS
                                     gantrycenter.z = gantrycenterztrans + (Math.Sin(((ANGLE * Math.PI) / 180.0)) * (-ISO.x + ISO.z));
                                 }
                             }
-                            else if(CouchEndAngle >= 270.0 & CouchEndAngle <= 360.0)
+                            else if (CouchEndAngle >= 270.0 & CouchEndAngle <= 360.0)
                             {
                                 if (gantryXISOshift == "NEG")   // gantry on left side
                                 {
@@ -1355,17 +1390,17 @@ namespace VMS.TPS
                             xpp = 384.0 * Math.Sin((thetap * Math.PI) / 180.0);
 
 
-                           // calaulate the left, right, front, back points of the gantry head for couch at 0 deg, for all gantry angles
+                            // calaulate the left, right, front, back points of the gantry head for couch at 0 deg, for all gantry angles
                             // these 4 points represent the gantry head
                             VVector RIGHTEDGE = origgantrycenter;
                             VVector LEFTEDGE = origgantrycenter;
                             VVector BACKEDGE = origgantrycenter;
                             VVector FRONTEDGE = origgantrycenter;
 
-                            FRONTEDGE.z = FRONTEDGE.z - 384.0;  
+                            FRONTEDGE.z = FRONTEDGE.z - 384.0;
                             BACKEDGE.z = BACKEDGE.z + 384.0;
 
-                            if (ActGantryAngle >= 0.0 & ActGantryAngle <= 90.0)
+                            if (GantryAngle >= 0.0 & GantryAngle <= 90.0)
                             {
                                 //  MessageBox.Show("Trigger gantry angle between 0 and 90 gantry points calculation");
                                 RIGHTEDGE.y = RIGHTEDGE.y + ypp;
@@ -1373,7 +1408,7 @@ namespace VMS.TPS
                                 RIGHTEDGE.x = RIGHTEDGE.x + xpp;
                                 LEFTEDGE.x = LEFTEDGE.x - xpp;
                             }
-                            else if (ActGantryAngle > 270.0)
+                            else if (GantryAngle > 270.0)
                             {
                                 //MessageBox.Show("Trigger gantry angle > 270 gantry points calculation");
                                 RIGHTEDGE.y = RIGHTEDGE.y - ypp;
@@ -1381,14 +1416,14 @@ namespace VMS.TPS
                                 RIGHTEDGE.x = RIGHTEDGE.x + xpp;
                                 LEFTEDGE.x = LEFTEDGE.x - xpp;
                             }
-                            else if (ActGantryAngle > 90.0 & ActGantryAngle <= 180.0)
+                            else if (GantryAngle > 90.0 & GantryAngle <= 180.0)
                             {
                                 RIGHTEDGE.y = RIGHTEDGE.y + ypp;
                                 LEFTEDGE.y = LEFTEDGE.y - ypp;
                                 RIGHTEDGE.x = RIGHTEDGE.x - xpp;
                                 LEFTEDGE.x = LEFTEDGE.x + xpp;
                             }
-                            else if (ActGantryAngle > 180.0 & ActGantryAngle <= 270.0)
+                            else if (GantryAngle > 180.0 & GantryAngle <= 270.0)
                             {
                                 RIGHTEDGE.y = RIGHTEDGE.y - ypp;
                                 LEFTEDGE.y = LEFTEDGE.y + ypp;
@@ -1400,7 +1435,7 @@ namespace VMS.TPS
                             // GANTRY EDGE POINTS COORDINATE SYSTEM TRANSFORMATION FOR COUCH ANGLE
                             if (CouchEndAngle >= 270.0 & CouchEndAngle <= 360.0)
                             {
- 
+
                                 ANGLE = 360.0 - CouchEndAngle;
 
                                 Backxtrans = (BACKEDGE.x * Math.Cos(((-ANGLE * Math.PI) / 180.0))) + (BACKEDGE.z * Math.Sin(((-ANGLE * Math.PI) / 180.0)));
@@ -1498,21 +1533,21 @@ namespace VMS.TPS
                                 }
                             }
 
-                        // MessageBox.Show("backedge after transform is: (" + BACKEDGE.x + " ," + BACKEDGE.y + " ," + BACKEDGE.z + ")");
-                        // MessageBox.Show("frontedge after transform is: (" + FRONTEDGE.x + " ," + FRONTEDGE.y + " ," + FRONTEDGE.z + ")");
-                        // MessageBox.Show("leftedge after transform is: (" + LEFTEDGE.x + " ," + LEFTEDGE.y + " ," + LEFTEDGE.z + ")");
-                        // MessageBox.Show("rightedge after transform is: (" + RIGHTEDGE.x + " ," + RIGHTEDGE.y + " ," + RIGHTEDGE.z + ")");
+                            // MessageBox.Show("backedge after transform is: (" + BACKEDGE.x + " ," + BACKEDGE.y + " ," + BACKEDGE.z + ")");
+                            // MessageBox.Show("frontedge after transform is: (" + FRONTEDGE.x + " ," + FRONTEDGE.y + " ," + FRONTEDGE.z + ")");
+                            // MessageBox.Show("leftedge after transform is: (" + LEFTEDGE.x + " ," + LEFTEDGE.y + " ," + LEFTEDGE.z + ")");
+                            // MessageBox.Show("rightedge after transform is: (" + RIGHTEDGE.x + " ," + RIGHTEDGE.y + " ," + RIGHTEDGE.z + ")");
 
-                        Vector3d Ri = new Vector3d(RIGHTEDGE.x, RIGHTEDGE.y, RIGHTEDGE.z);  //0           5     9    13
-                        Vector3d Le = new Vector3d(LEFTEDGE.x, LEFTEDGE.y, LEFTEDGE.z);      //1          6     10   14
-                        Vector3d Ba = new Vector3d(BACKEDGE.x, BACKEDGE.y, BACKEDGE.z);      //2          7     11   15
-                        Vector3d Fr = new Vector3d(FRONTEDGE.x, FRONTEDGE.y, FRONTEDGE.z);    //3         8     12   16
-                        Vector3d Ce = new Vector3d(gantrycenter.x, gantrycenter.y, gantrycenter.z);   //4
+                            Vector3d Ri = new Vector3d(RIGHTEDGE.x, RIGHTEDGE.y, RIGHTEDGE.z);  //0           5     9    13
+                            Vector3d Le = new Vector3d(LEFTEDGE.x, LEFTEDGE.y, LEFTEDGE.z);      //1          6     10   14
+                            Vector3d Ba = new Vector3d(BACKEDGE.x, BACKEDGE.y, BACKEDGE.z);      //2          7     11   15
+                            Vector3d Fr = new Vector3d(FRONTEDGE.x, FRONTEDGE.y, FRONTEDGE.z);    //3         8     12   16
+                            Vector3d Ce = new Vector3d(gantrycenter.x, gantrycenter.y, gantrycenter.z);   //4
 
-                           
-                        // MessageBox.Show("Trig");
 
-                        List<Index3i> Grangle = new List<Index3i>();
+                            // MessageBox.Show("Trig");
+
+                            List<Index3i> Grangle = new List<Index3i>();
                             Index3i shangle = new Index3i(3, 4, 0);
                             Grangle.Add(shangle);
 
@@ -1526,7 +1561,7 @@ namespace VMS.TPS
                             Grangle.Add(shangle);
 
                             DMesh3 GANTRY = new DMesh3(MeshComponents.VertexNormals);
-                             
+
                             GANTRY.AppendVertex(new NewVertexInfo(Ri));
                             GANTRY.AppendVertex(new NewVertexInfo(Le));
                             GANTRY.AppendVertex(new NewVertexInfo(Ba));
@@ -1539,87 +1574,87 @@ namespace VMS.TPS
                                 // SUPERGANTRY.AppendTriangle(tri);
                             }
 
-                        Vector3d gantrynormal = GANTRY.GetTriNormal(0);                       
+                            Vector3d gantrynormal = GANTRY.GetTriNormal(0);
 
-                        TrivialDiscGenerator makegantryhead = new TrivialDiscGenerator();
-                        makegantryhead.Radius = 382.5f;
-                        makegantryhead.StartAngleDeg = 0.0f;
-                        makegantryhead.EndAngleDeg = 360.0f;
-                        makegantryhead.Slices = 72;
-                        makegantryhead.Generate();
-                        DMesh3 diskgantry = makegantryhead.MakeDMesh();
-                        MeshTransforms.Translate(diskgantry, Ce);
+                            TrivialDiscGenerator makegantryhead = new TrivialDiscGenerator();
+                            makegantryhead.Radius = 382.5f;
+                            makegantryhead.StartAngleDeg = 0.0f;
+                            makegantryhead.EndAngleDeg = 360.0f;
+                            makegantryhead.Slices = 72;
+                            makegantryhead.Generate();
+                            DMesh3 diskgantry = makegantryhead.MakeDMesh();
+                            MeshTransforms.Translate(diskgantry, Ce);
 
-                       // IOWriteResult result40 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\Test\diskGantryi" + beam.Id + point.Index + ".stl", new List<WriteMesh>() { new WriteMesh(diskgantry) }, WriteOptions.Defaults);
+                            // IOWriteResult result40 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\Test\diskGantryi" + beam.Id + point.Index + ".stl", new List<WriteMesh>() { new WriteMesh(diskgantry) }, WriteOptions.Defaults);
 
-                        Vector3d diskgantrynormal = diskgantry.GetTriNormal(0);
-                        double gantrydotprod = Vector3d.Dot(diskgantrynormal.Normalized, gantrynormal.Normalized);
-                        double anglebetweengantrynormals = Math.Acos(gantrydotprod);     // in radians
-                                                                                         // MessageBox.Show("angle between: " + anglebetweengantrynormals);
+                            Vector3d diskgantrynormal = diskgantry.GetTriNormal(0);
+                            double gantrydotprod = Vector3d.Dot(diskgantrynormal.Normalized, gantrynormal.Normalized);
+                            double anglebetweengantrynormals = Math.Acos(gantrydotprod);     // in radians
+                                                                                             // MessageBox.Show("angle between: " + anglebetweengantrynormals);
 
-                        // this changes with couch rotation. (0,0,1) at couch zero degrees. implement coordinate system transformation. 
-                        Vector3d zaxisgd = new Vector3d(0,0,1);
-                        double zaxisgd_xp = 0.0;
-                        double zaxisgd_zp = 0.0;
+                            // this changes with couch rotation. (0,0,1) at couch zero degrees. implement coordinate system transformation. 
+                            Vector3d zaxisgd = new Vector3d(0, 0, 1);
+                            double zaxisgd_xp = 0.0;
+                            double zaxisgd_zp = 0.0;
 
-                        if (CouchEndAngle >= 270.0 & CouchEndAngle <= 360.0)
-                        {
-                            ANGLE = 360.0 - CouchEndAngle;
+                            if (CouchEndAngle >= 270.0 & CouchEndAngle <= 360.0)
+                            {
+                                ANGLE = 360.0 - CouchEndAngle;
 
-                            // counterclockwise rotation
-                            zaxisgd_xp = (zaxisgd.x * Math.Cos(((-ANGLE * Math.PI) / 180.0))) + (zaxisgd.z * Math.Sin(((-ANGLE * Math.PI) / 180.0)));
-                            zaxisgd_zp = (zaxisgd.z * Math.Cos(((-ANGLE * Math.PI) / 180.0))) - (zaxisgd.x * Math.Sin(((-ANGLE * Math.PI) / 180.0)));
-                        }
-                        else if (CouchEndAngle >= 0.0 & CouchEndAngle <= 90.0)
-                        {
-                            ANGLE = CouchEndAngle;
+                                // counterclockwise rotation
+                                zaxisgd_xp = (zaxisgd.x * Math.Cos(((-ANGLE * Math.PI) / 180.0))) + (zaxisgd.z * Math.Sin(((-ANGLE * Math.PI) / 180.0)));
+                                zaxisgd_zp = (zaxisgd.z * Math.Cos(((-ANGLE * Math.PI) / 180.0))) - (zaxisgd.x * Math.Sin(((-ANGLE * Math.PI) / 180.0)));
+                            }
+                            else if (CouchEndAngle >= 0.0 & CouchEndAngle <= 90.0)
+                            {
+                                ANGLE = CouchEndAngle;
 
-                            //clockwise rotation
-                            zaxisgd_xp = (zaxisgd.x * Math.Cos(((ANGLE * Math.PI) / 180.0))) + (zaxisgd.z * Math.Sin(((ANGLE * Math.PI) / 180.0)));
-                            zaxisgd_zp = (zaxisgd.z * Math.Cos(((ANGLE * Math.PI) / 180.0))) - (zaxisgd.x * Math.Sin(((ANGLE * Math.PI) / 180.0)));
-                        }
+                                //clockwise rotation
+                                zaxisgd_xp = (zaxisgd.x * Math.Cos(((ANGLE * Math.PI) / 180.0))) + (zaxisgd.z * Math.Sin(((ANGLE * Math.PI) / 180.0)));
+                                zaxisgd_zp = (zaxisgd.z * Math.Cos(((ANGLE * Math.PI) / 180.0))) - (zaxisgd.x * Math.Sin(((ANGLE * Math.PI) / 180.0)));
+                            }
 
-                        zaxisgd.x = zaxisgd_xp;
-                        zaxisgd.z = zaxisgd_zp;
+                            zaxisgd.x = zaxisgd_xp;
+                            zaxisgd.z = zaxisgd_zp;
 
 
-                        if (ActGantryAngle > 180.0)
-                        {
-                            anglebetweengantrynormals = -1 * anglebetweengantrynormals;
-                        }
+                            if (GantryAngle > 180.0)
+                            {
+                                anglebetweengantrynormals = -1 * anglebetweengantrynormals;
+                            }
 
-                        Vector3d ISOV = new Vector3d(Ce.x, Ce.y, Ce.z);
-                        Quaterniond diskrot = new Quaterniond(zaxisgd, (anglebetweengantrynormals * MathUtil.Rad2Deg));
-                        MeshTransforms.Rotate(diskgantry, ISOV, diskrot);
+                            Vector3d ISOV = new Vector3d(Ce.x, Ce.y, Ce.z);
+                            Quaterniond diskrot = new Quaterniond(zaxisgd, (anglebetweengantrynormals * MathUtil.Rad2Deg));
+                            MeshTransforms.Rotate(diskgantry, ISOV, diskrot);
 
-                        IOWriteResult result42 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\DiskGantry\diskgantry" + beam.Id + point.Index + ".stl", new List<WriteMesh>() { new WriteMesh(diskgantry) }, WriteOptions.Defaults);
+                            IOWriteResult result42 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\DiskGantry\diskgantry" + beam.Id + GantryAngle + ".stl", new List<WriteMesh>() { new WriteMesh(diskgantry) }, WriteOptions.Defaults);
 
-                        IOWriteResult result5 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\SquareGantry\Gantry" + beam.Id + point.Index + ".stl", new List<WriteMesh>() { new WriteMesh(GANTRY) }, WriteOptions.Defaults);
+                            IOWriteResult result5 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\SquareGantry\Gantry" + beam.Id + GantryAngle + ".stl", new List<WriteMesh>() { new WriteMesh(GANTRY) }, WriteOptions.Defaults);
 
-                        // MessageBox.Show("Trig8");
+                            // MessageBox.Show("Trig8");
 
-                        // MessageBox.Show("number of triangles: " + cbht);
+                            // MessageBox.Show("number of triangles: " + cbht);
 
-                        // ProgOutput.AppendText(Environment.NewLine);
-                        // ProgOutput.AppendText("Gantry mesh Construction Done");
+                            // ProgOutput.AppendText(Environment.NewLine);
+                            // ProgOutput.AppendText("Gantry mesh Construction Done");
 
-                        //  DMesh3 PATBOX2 = DMesh3Builder.Build(IEnumerable<Vector3d> vertices, triangles);
+                            //  DMesh3 PATBOX2 = DMesh3Builder.Build(IEnumerable<Vector3d> vertices, triangles);
 
-                        //PATBOX.CheckValidity();
+                            //PATBOX.CheckValidity();
 
-                        //IOWriteResult result = StandardMeshWriter.WriteFile(@"\\Wvvrnimbp01ss\va_data$\filedata\ProgramData\Vision\PublishedScripts\PATBOX.stl", new List<WriteMesh>() { new WriteMesh(PATBOX) }, WriteOptions.Defaults);
+                            //IOWriteResult result = StandardMeshWriter.WriteFile(@"\\Wvvrnimbp01ss\va_data$\filedata\ProgramData\Vision\PublishedScripts\PATBOX.stl", new List<WriteMesh>() { new WriteMesh(PATBOX) }, WriteOptions.Defaults);
 
-                        DMeshAABBTree3 GANTRYspatial = new DMeshAABBTree3(GANTRY);
-                        GANTRYspatial.Build();
+                            DMeshAABBTree3 GANTRYspatial = new DMeshAABBTree3(GANTRY);
+                            GANTRYspatial.Build();
 
-                        DMeshAABBTree3 diskgantryspatial = new DMeshAABBTree3(diskgantry);
-                        diskgantryspatial.Build();
+                            DMeshAABBTree3 diskgantryspatial = new DMeshAABBTree3(diskgantry);
+                            diskgantryspatial.Build();
 
-                          //      MessageBox.Show("Trig3");
+                            //      MessageBox.Show("Trig3");
 
-                         string boxedgeflag = null;
-                         bool closebody = false;
-                         bool coli = true;
+                            string boxedgeflag = null;
+                            bool closebody = false;
+                            bool coli = true;
 
 
                             if (findCouchSurf == true)
@@ -1627,7 +1662,7 @@ namespace VMS.TPS
                                 if (diskgantryspatial.TestIntersection(CouchSurfSpatial) == true)
                                 {
                                     // MessageBox.Show("gspatial / couch surface collision");
-                                    collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(ActGantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distpoint = "Intersection with Couch", pbodyalert = closebody });
+                                    collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distpoint = "Intersection with Couch", pbodyalert = closebody });
                                 }
                             }
 
@@ -1636,7 +1671,7 @@ namespace VMS.TPS
                                 if (diskgantryspatial.TestIntersection(PCouchInteriorSpatial) == true)
                                 {
                                     // MessageBox.Show("gspatial / couch interior collision");
-                                    collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(ActGantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distpoint = "Intersection with Couch.", pbodyalert = closebody });
+                                    collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distpoint = "Intersection with Couch.", pbodyalert = closebody });
                                 }
                             }
 
@@ -1645,21 +1680,21 @@ namespace VMS.TPS
                                 if (diskgantryspatial.TestIntersection(PProne_Brst_BoardSpatial) == true)
                                 {
                                     // MessageBox.Show("gspatial / Prone Breast Board collision");
-                                    collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(ActGantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distpoint = "Intersection with Prone Breast Board.", pbodyalert = closebody });
+                                    collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distpoint = "Intersection with Prone Breast Board.", pbodyalert = closebody });
                                 }
                             }
 
 
                             if (diskgantryspatial.TestIntersection(spatial) == true)
                             {
-                                    // MessageBox.Show("gspatial / spatial(patient box) collision");
+                                // MessageBox.Show("gspatial / spatial(patient box) collision");
 
-                                    if (diskgantryspatial.TestIntersection(PBodyContourSpatial) == true)
-                                    {
-                                        closebody = true;
-                                    }
+                                if (diskgantryspatial.TestIntersection(PBodyContourSpatial) == true)
+                                {
+                                    closebody = true;
+                                }
 
-                                        //so segment intersections work, just need to figure out what to do with it
+                                //so segment intersections work, just need to figure out what to do with it
 
                                 /*
                                         if(closebody == false & pintersect.point0.z < pbmaxz & pintersect.point0.z > pbminz)
@@ -1687,18 +1722,18 @@ namespace VMS.TPS
                                         }
                                 */
 
-                                        // Meshint = pintersect.point;                             
+                                // Meshint = pintersect.point;                             
 
-                                    
-                                    if(coli == true)
-                                    {
-                                        collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(ActGantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distpoint = "Intersection with patient bounding box.", pbodyalert = closebody });
-                                    }   
 
-                            }                  
+                                if (coli == true)
+                                {
+                                    collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distpoint = "Intersection with patient bounding box.", pbodyalert = closebody });
+                                }
 
-                                //foreach (int vert in PATBOX.VertexIndices())
-                                //{
+                            }
+
+                            //foreach (int vert in PATBOX.VertexIndices())
+                            //{
 
                             /*
 
@@ -1726,35 +1761,35 @@ namespace VMS.TPS
 
                                if (DistRightEdge <= 50.0)
                                {
-                                   collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(ActGantryAngle, 1, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = Math.Round(DistRightEdge, 1, MidpointRounding.AwayFromZero), distpoint = "Right Edge", Gantrypoint = RIGHTEDGE, Patpoint = Vect });
+                                   collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(GantryAngle, 1, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = Math.Round(DistRightEdge, 1, MidpointRounding.AwayFromZero), distpoint = "Right Edge", Gantrypoint = RIGHTEDGE, Patpoint = Vect });
 
 
 
                                }
                                else if (DistLeftEdge <= 50.0)
                                {
-                                   collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(ActGantryAngle, 1, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = Math.Round(DistLeftEdge, 1, MidpointRounding.AwayFromZero), distpoint = "Left Edge", Gantrypoint = LEFTEDGE, Patpoint = Vect });
+                                   collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(GantryAngle, 1, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = Math.Round(DistLeftEdge, 1, MidpointRounding.AwayFromZero), distpoint = "Left Edge", Gantrypoint = LEFTEDGE, Patpoint = Vect });
 
 
 
                                }
                                else if (DistBackEdge <= 50.0)
                                {
-                                   collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(ActGantryAngle, 1, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = Math.Round(DistBackEdge, 1, MidpointRounding.AwayFromZero), distpoint = "Back Edge", Gantrypoint = BACKEDGE, Patpoint = Vect });
+                                   collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(GantryAngle, 1, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = Math.Round(DistBackEdge, 1, MidpointRounding.AwayFromZero), distpoint = "Back Edge", Gantrypoint = BACKEDGE, Patpoint = Vect });
 
 
 
                                }
                                else if (DistFrontEdge <= 50.0)
                                {
-                                   collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(ActGantryAngle, 1, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = Math.Round(DistFrontEdge, 1, MidpointRounding.AwayFromZero), distpoint = "Front Edge", Gantrypoint = FRONTEDGE, Patpoint = Vect });
+                                   collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(GantryAngle, 1, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = Math.Round(DistFrontEdge, 1, MidpointRounding.AwayFromZero), distpoint = "Front Edge", Gantrypoint = FRONTEDGE, Patpoint = Vect });
 
 
 
                                }
                                else if (Distgf <= 50.0)
                                {
-                                   collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(ActGantryAngle, 1, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = Math.Round(Distgf, 1, MidpointRounding.AwayFromZero), distpoint = "Center", Gantrypoint = gantrycenter, Patpoint = Vect });
+                                   collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(GantryAngle, 1, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = Math.Round(Distgf, 1, MidpointRounding.AwayFromZero), distpoint = "Center", Gantrypoint = gantrycenter, Patpoint = Vect });
 
 
 
@@ -1768,29 +1803,24 @@ namespace VMS.TPS
                         */
 
 
-                        /*
-                           colcomp = collist.FindLast(
-                           delegate (CollisionAlert ca)
-                           {
-                               return ca.distpoint == "Right Edge" & ca.controlpoint == (point.Index - 1) & VVector.Distance(Vect, ca.Patpoint) <= 70.0);
-                           });
-                        */
+                            /*
+                               colcomp = collist.FindLast(
+                               delegate (CollisionAlert ca)
+                               {
+                                   return ca.distpoint == "Right Edge" & ca.controlpoint == (point.Index - 1) & VVector.Distance(Vect, ca.Patpoint) <= 70.0);
+                               });
+                            */
 
 
 
 
 
 
-                        //  MessageBox.Show("PATBOX vert  loop done");
+                            //  MessageBox.Show("PATBOX vert  loop done");
 
-                        //}     // ends index control point counting loop
-                    }   // ends control point loop   
-
-
-
-
-
-
+                            //}     // ends index control point counting loop
+                          // ends control point loop   
+                    }   // ends if MLC type is static
 
                         //  MessageBox.Show("CONTROL POINT loop done");
 
