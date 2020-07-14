@@ -118,6 +118,7 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="DirectionsBox.Text" xml:space="preserve">
-    <value>Please select one of the plans below to run a collision check on, then select the approximate region of the body in the planning image.  The patient's height will be automatically generated based on sex, but if you can, enter a more accurate value. Click the "Execute" button when ready. Information about specific possible collisions will appear on the right.</value>
+    <value>Please select one of the plans below to run a collision check on, then select the approximate region of the body in the planning image.  The patient's height will be automatically generated based on sex, but if you can, enter a more accurate value. Click the "Execute" button when ready. The program will alert you to the start and end of each region of an arc where the gantry is within 5 cm of the patient's bounding box and/or couch structures. It will also alert you if the gantry is within 5 cm of the patient and/or couch for any static beams.  The program will also open a separate window to visually display the 3D model of each beam where a collision was detected. If you run this on a static MLC plan, the program will directly access the ARIA database to get gantry rotation information. A blank terminal will appear when this happens. This program is a little slow depending on the plan, it may take 1 minute per arc for an arc plan. 
+</value>
   </data>
 </root>

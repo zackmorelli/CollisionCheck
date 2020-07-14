@@ -3,6 +3,7 @@ using System.Media;
 using System.Numerics;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
@@ -69,6 +70,9 @@ namespace VMS.TPS
         public static DMesh3 PProne_Brst_Board = new DMesh3();
         public static DMeshAABBTree3 PProne_Brst_BoardSpatial;
 
+        public static DMesh3 PATBOX = new DMesh3();
+        public static DMeshAABBTree3 spatial;
+
 
         // Declaration space for all the functions which make up the program.
         // Execution begins with the "Execute" function.
@@ -80,6 +84,35 @@ namespace VMS.TPS
         // 41.5 cm distance from iso to gantry head??
 
         // not currently used, but still here in case we want to revert to something similiar
+
+
+        // this is a method used to check that the .STL files used in this program are okay before being opened
+
+        protected static bool IsFileLocked(FileInfo file)
+        {
+            try
+            {
+                using (FileStream stream = file.Open(FileMode.Open, FileAccess.Read, FileShare.None))
+                {
+                    stream.Close();
+                }
+            }
+            catch (IOException e)
+            {
+                System.Windows.Forms.MessageBox.Show("IOException occured when attempting to open file " + file.DirectoryName + ". This file is either 1) Still being written to. 2) Being processed by another thread. 3) Does not exist." + Environment.NewLine + Environment.NewLine + "Source: " + e.Source + Environment.NewLine + "Message: " + e.Message + Environment.NewLine + "Stack Trace: " + e.StackTrace);
+
+                //the file is unavailable because it is:
+                //still being written to
+                //or being processed by another thread
+                //or does not exist (has already been processed)
+                return true;
+            }
+
+            //file is not locked
+            return false;
+        }
+
+
         public double CollisionAnalysis(ControlPointCollection PC)
         {
             double clearance = 0.0;     // in CM !!!!!
@@ -101,7 +134,7 @@ namespace VMS.TPS
             return clearance;      // in CM !!!
         }
 
-        public double ABSDISTANCE(Vector3d V1, Vector3d V2)
+        public static double ABSDISTANCE(Vector3d V1, Vector3d V2)
         {
             double distance = 0.0;
             double xdiff = 0.0;
@@ -152,7 +185,7 @@ namespace VMS.TPS
             return;
         }
 
-        public class CollisionAlert : IEquatable<CollisionAlert>
+        public class CollisionAlert 
         {
             public string beam { get; set; }
 
@@ -164,7 +197,7 @@ namespace VMS.TPS
 
             public double distance { get; set; }
 
-            public string distpoint { get; set; }
+            public string type { get; set; }   // this specifies the mesh being checked against diskgantry for collision (PATBOX, body contour, breast board, etc.)
 
             public Vector3d Gantrypoint { get; set; }
            
@@ -174,14 +207,19 @@ namespace VMS.TPS
 
             public bool pbodyalert { get; set; }
 
+            public bool contiguous { get; set; }
 
-            public bool Equals(CollisionAlert other)
+            public bool lastcontig { get; set; }
+            
+            public CollisionAlert()
             {
-                throw new NotImplementedException();
+                lastcontig = false;
             }
+
+
         }
 
-        public static DMeshAABBTree3 BOXMAKER (string PATEINTORIENTATION, bool findCouchSurf, bool findCouchInterior, bool findProneBrstBoard, Structure Body, Structure CouchSurface, Structure CouchInterior, Structure Prone_Brst_Board, string bodyloc, double ht, double uXISOshift, double uYISOshift, double uZISOshift, TextBox ProgOutput, PlanSetup plan, Image image, List<WriteMesh> tempbeam)
+        public static void BOXMAKER (string PATEINTORIENTATION, bool findCouchInterior, bool findProneBrstBoard, Structure Body, Structure CouchInterior, Structure Prone_Brst_Board, string bodyloc, double ht, double uXISOshift, double uYISOshift, double uZISOshift, TextBox ProgOutput, PlanSetup plan, Image image, List<WriteMesh> tempbeam)
         {
 
             ht = ht * 10.0;    //convert from cm to mm.   IT is in mm
@@ -242,7 +280,7 @@ namespace VMS.TPS
                 PBodyContour.AppendTriangle(ptl[i]);
             }
 
-            if(PATEINTORIENTATION == "HeadFirstProne")
+            if(PATEINTORIENTATION == "HeadFirstProne" || PATEINTORIENTATION == "FeetFirstProne")
             {
                 PatOrientRotCenter = MeshMeasurements.Centroid(PBodyContour);
                 PatOrientRot = new Quaterniond(ZaxisPatOrientRot, 180.0);
@@ -258,86 +296,86 @@ namespace VMS.TPS
                 MeshTransforms.Translate(PBodyContour, uXISOshift, uYISOshift, uZISOshift);
             }
 
-            IOWriteResult result24 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\DiskGantry\PBODY.stl", new List<WriteMesh>() { new WriteMesh(PBodyContour) }, WriteOptions.Defaults);
+            //IOWriteResult result24 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\DiskGantry\PBODY.stl", new List<WriteMesh>() { new WriteMesh(PBodyContour) }, WriteOptions.Defaults);
 
             tempbeam.Add(new WriteMesh(PBodyContour));
 
             PBodyContourSpatial = new DMeshAABBTree3(PBodyContour);
             PBodyContourSpatial.Build();
 
-            if (findCouchSurf == true)
-            {
-                // -------------------------------------------------------------------- makes mesh out of Couch surface
+            //if (findCouchSurf == true)
+            //{
+            //    // -------------------------------------------------------------------- makes mesh out of Couch surface
 
-                ProgOutput.AppendText(Environment.NewLine);
-                ProgOutput.AppendText("Building Couch Surface mesh... ");
+            //    ProgOutput.AppendText(Environment.NewLine);
+            //    ProgOutput.AppendText("Building Couch Surface mesh... ");
 
-                List<Vector3d> cspvl = new List<Vector3d>();
-                Vector3d cspv = new Vector3d();
+            //    List<Vector3d> cspvl = new List<Vector3d>();
+            //    Vector3d cspv = new Vector3d();
 
-                List<Index3i> csptl = new List<Index3i>();
-                Index3i cspt = new Index3i();
-                int csptmcount = 0;
+            //    List<Index3i> csptl = new List<Index3i>();
+            //    Index3i cspt = new Index3i();
+            //    int csptmcount = 0;
 
-                foreach (Point3D pm in CouchSurface.MeshGeometry.Positions)
-                {
-                    cspv.x = pm.X;
-                    cspv.y = pm.Y;
-                    cspv.z = pm.Z;
+            //    foreach (Point3D pm in CouchSurface.MeshGeometry.Positions)
+            //    {
+            //        cspv.x = pm.X;
+            //        cspv.y = pm.Y;
+            //        cspv.z = pm.Z;
 
-                    cspvl.Add(cspv);
-                }
+            //        cspvl.Add(cspv);
+            //    }
 
-                foreach (Int32 ptm in CouchSurface.MeshGeometry.TriangleIndices)
-                {
-                    csptmcount++;
-                    Math.DivRem(csptmcount, 3, out rem);
+            //    foreach (Int32 ptm in CouchSurface.MeshGeometry.TriangleIndices)
+            //    {
+            //        csptmcount++;
+            //        Math.DivRem(csptmcount, 3, out rem);
 
-                    if (rem == 2)
-                    {
-                        cspt.a = ptm;
-                    }
-                    else if (rem == 1)
-                    {
-                        cspt.b = ptm;
-                    }
-                    else if (rem == 0)
-                    {
-                        cspt.c = ptm;
-                        csptl.Add(cspt);
-                    }
-                }
+            //        if (rem == 2)
+            //        {
+            //            cspt.a = ptm;
+            //        }
+            //        else if (rem == 1)
+            //        {
+            //            cspt.b = ptm;
+            //        }
+            //        else if (rem == 0)
+            //        {
+            //            cspt.c = ptm;
+            //            csptl.Add(cspt);
+            //        }
+            //    }
 
-                PCouchsurf = new DMesh3(MeshComponents.VertexNormals);
-                for (int i = 0; i < cspvl.Count; i++)
-                {
-                    PCouchsurf.AppendVertex(new NewVertexInfo(cspvl[i]));
-                }
+            //    PCouchsurf = new DMesh3(MeshComponents.VertexNormals);
+            //    for (int i = 0; i < cspvl.Count; i++)
+            //    {
+            //        PCouchsurf.AppendVertex(new NewVertexInfo(cspvl[i]));
+            //    }
 
-                for (int i = 0; i < csptl.Count; i++)
-                {
-                    PBodyContour.AppendTriangle(csptl[i]);
-                }
+            //    for (int i = 0; i < csptl.Count; i++)
+            //    {
+            //        PBodyContour.AppendTriangle(csptl[i]);
+            //    }
 
-                if (PATEINTORIENTATION == "HeadFirstProne")
-                {
-                    PatOrientRotCenter = MeshMeasurements.Centroid(PBodyContour);
-                    PatOrientRot = new Quaterniond(ZaxisPatOrientRot, 180.0);
-                    MeshTransforms.Rotate(PCouchsurf, PatOrientRotCenter, PatOrientRot);
-                }
+            //    if (PATEINTORIENTATION == "HeadFirstProne" || PATEINTORIENTATION == "FeetFirstProne")
+            //    {
+            //        PatOrientRotCenter = MeshMeasurements.Centroid(PBodyContour);
+            //        PatOrientRot = new Quaterniond(ZaxisPatOrientRot, 180.0);
+            //        MeshTransforms.Rotate(PCouchsurf, PatOrientRotCenter, PatOrientRot);
+            //    }
 
-                if (uXISOshift != 0.0 || uYISOshift != 0.0 || uZISOshift != 0.0)
-                {
-                    MeshTransforms.Translate(PCouchsurf, uXISOshift, -uYISOshift, uZISOshift);
-                }
+            //    if (uXISOshift != 0.0 || uYISOshift != 0.0 || uZISOshift != 0.0)
+            //    {
+            //        MeshTransforms.Translate(PCouchsurf, uXISOshift, -uYISOshift, uZISOshift);
+            //    }
 
 
-                IOWriteResult result31 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\DiskGantry\CouchSurface.stl", new List<WriteMesh>() { new WriteMesh(PCouchsurf) }, WriteOptions.Defaults);
-                tempbeam.Add(new WriteMesh(PCouchsurf));
+            //   // IOWriteResult result31 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\DiskGantry\CouchSurface.stl", new List<WriteMesh>() { new WriteMesh(PCouchsurf) }, WriteOptions.Defaults);
+            //    tempbeam.Add(new WriteMesh(PCouchsurf));
 
-                CouchSurfSpatial = new DMeshAABBTree3(PCouchsurf);
-                CouchSurfSpatial.Build();
-            }
+            //    CouchSurfSpatial = new DMeshAABBTree3(PCouchsurf);
+            //    CouchSurfSpatial.Build();
+            //}
 
 
             if (findCouchInterior == true)
@@ -393,7 +431,7 @@ namespace VMS.TPS
                     PCouchInterior.AppendTriangle(ciptl[i]);
                 }
 
-                if (PATEINTORIENTATION == "HeadFirstProne")
+                if (PATEINTORIENTATION == "HeadFirstProne" || PATEINTORIENTATION == "FeetFirstProne")
                 {
                     PatOrientRotCenter = MeshMeasurements.Centroid(PBodyContour);
                     PatOrientRot = new Quaterniond(ZaxisPatOrientRot, 180.0);
@@ -405,7 +443,7 @@ namespace VMS.TPS
                     MeshTransforms.Translate(PCouchInterior, uXISOshift, -uYISOshift, uZISOshift);
                 }
 
-                IOWriteResult result30 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\DiskGantry\CouchInterior.stl", new List<WriteMesh>() { new WriteMesh(PCouchInterior) }, WriteOptions.Defaults);
+               // IOWriteResult result30 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\DiskGantry\CouchInterior.stl", new List<WriteMesh>() { new WriteMesh(PCouchInterior) }, WriteOptions.Defaults);
                 tempbeam.Add(new WriteMesh(PCouchInterior));
 
                 PCouchInteriorSpatial = new DMeshAABBTree3(PCouchInterior);
@@ -465,7 +503,7 @@ namespace VMS.TPS
                     PProne_Brst_Board.AppendTriangle(bbptl[i]);
                 }
 
-                if (PATEINTORIENTATION == "HeadFirstProne")
+                if (PATEINTORIENTATION == "HeadFirstProne" || PATEINTORIENTATION == "FeetFirstProne")
                 {
                     PatOrientRotCenter = MeshMeasurements.Centroid(PBodyContour);
                     PatOrientRot = new Quaterniond(ZaxisPatOrientRot, 180.0);
@@ -477,7 +515,7 @@ namespace VMS.TPS
                     MeshTransforms.Translate(PProne_Brst_Board, uXISOshift, -uYISOshift, uZISOshift);
                 }
 
-                IOWriteResult result36 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\DiskGantry\ProneBreastBoard.stl", new List<WriteMesh>() { new WriteMesh(PProne_Brst_Board) }, WriteOptions.Defaults);
+              //  IOWriteResult result36 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\DiskGantry\ProneBreastBoard.stl", new List<WriteMesh>() { new WriteMesh(PProne_Brst_Board) }, WriteOptions.Defaults);
                 tempbeam.Add(new WriteMesh(PProne_Brst_Board));
 
 
@@ -543,10 +581,12 @@ namespace VMS.TPS
             double thoraxdownshift = (ht - LT) * 0.78;
             double abdomenupshift = (ht - LT) * 0.35;
             double abdomendownshift = (ht - LT) * 0.7;
-            double pelvisupshift = (ht - LT) * 0.60;
+            double pelvisupshift = (ht - LT) * 0.55;
             double pelvisdownshift = (ht - LT) * 0.55;
+            double legsupshift = (ht - LT) * 0.75;
+            double legsdownshift = (ht - LT) * 0.31;
 
-           // MessageBox.Show("headdownshift is: " + headdownshift);
+            // MessageBox.Show("headdownshift is: " + headdownshift);
 
             // find the 8 corners of the Rect3D, use them to make a separate mesh. use Body.CenterPoint as origin to maintain coordinate system
             double patbxshift = BOX.SizeX / 2.0;
@@ -589,9 +629,13 @@ namespace VMS.TPS
                 centerofforwardface.z = centerofforwardface.z + pelvisupshift;
                 centerofdownwardface.z = centerofdownwardface.z - pelvisdownshift;
             }
+            else if (bodyloc == "Legs")
+            {
+                centerofforwardface.z = centerofforwardface.z + legsupshift;
+                centerofdownwardface.z = centerofdownwardface.z - legsdownshift;
+            }
 
-
-           // MessageBox.Show("Center of Forward Face (plane above head): (" + centerofforwardface.x + " ," + centerofforwardface.y + " ," + centerofforwardface.z + ")");
+            // MessageBox.Show("Center of Forward Face (plane above head): (" + centerofforwardface.x + " ," + centerofforwardface.y + " ," + centerofforwardface.z + ")");
 
             Vector3d centeroftopface = new Vector3d(Body.CenterPoint.x, Body.CenterPoint.y - patbyshift, Body.CenterPoint.z);
             Vector3d centerofbottomface = new Vector3d(Body.CenterPoint.x, Body.CenterPoint.y + patbyshift, Body.CenterPoint.z);
@@ -623,6 +667,11 @@ namespace VMS.TPS
             {
                 vect.z = Body.CenterPoint.z + patbzshift + pelvisupshift;
             }
+            else if (bodyloc == "Legs")
+            {
+                vect.z = Body.CenterPoint.z + patbzshift + legsupshift;
+            }
+
             vect.y = Body.CenterPoint.y - patbyshift;
             vertices.Add(vect);
             Vector3d tur = new Vector3d(vect.x, vect.y, vect.z);
@@ -645,6 +694,11 @@ namespace VMS.TPS
             {
                 vect.z = Body.CenterPoint.z + patbzshift + pelvisupshift;
             }
+            else if (bodyloc == "Legs")
+            {
+                vect.z = Body.CenterPoint.z + patbzshift + legsupshift;
+            }
+
             vect.y = Body.CenterPoint.y - patbyshift;
             vertices.Add(vect);
             Vector3d tul = new Vector3d(vect.x, vect.y, vect.z);
@@ -666,6 +720,10 @@ namespace VMS.TPS
             else if (bodyloc == "Pelvis")
             {
                 vect.z = Body.CenterPoint.z - patbzshift - pelvisdownshift;
+            }
+            else if (bodyloc == "Legs")
+            {
+                vect.z = Body.CenterPoint.z - patbzshift - legsdownshift;
             }
             vect.y = Body.CenterPoint.y - patbyshift;
             vertices.Add(vect);
@@ -689,6 +747,11 @@ namespace VMS.TPS
             {
                 vect.z = Body.CenterPoint.z - patbzshift - pelvisdownshift;
             }
+            else if (bodyloc == "Legs")
+            {
+                vect.z = Body.CenterPoint.z - patbzshift - legsdownshift;
+            }
+
             vect.y = Body.CenterPoint.y - patbyshift;
             vertices.Add(vect);
             Vector3d tbl = new Vector3d(vect.x, vect.y, vect.z);
@@ -711,6 +774,11 @@ namespace VMS.TPS
             {
                 vect.z = Body.CenterPoint.z + patbzshift + pelvisupshift;
             }
+            else if (bodyloc == "Legs")
+            {
+                vect.z = Body.CenterPoint.z + patbzshift + legsupshift;
+            }
+
             vect.y = Body.CenterPoint.y + patbyshift;
             vertices.Add(vect);
             Vector3d lur = new Vector3d(vect.x, vect.y, vect.z);
@@ -733,6 +801,11 @@ namespace VMS.TPS
             {
                 vect.z = Body.CenterPoint.z + patbzshift + pelvisupshift;
             }
+            else if (bodyloc == "Legs")
+            {
+                vect.z = Body.CenterPoint.z + patbzshift + legsupshift;
+            }
+
             vect.y = Body.CenterPoint.y + patbyshift;
             vertices.Add(vect);
             Vector3d lul = new Vector3d(vect.x, vect.y, vect.z);
@@ -753,8 +826,13 @@ namespace VMS.TPS
             }
             else if (bodyloc == "Pelvis")
             {
-                vect.z = Body.CenterPoint.z - patbzshift - abdomendownshift;
+                vect.z = Body.CenterPoint.z - patbzshift - pelvisdownshift;
             }
+            else if (bodyloc == "Legs")
+            {
+                vect.z = Body.CenterPoint.z - patbzshift - legsdownshift;
+            }
+
             vect.y = Body.CenterPoint.y + patbyshift;
             vertices.Add(vect);
             Vector3d lbr = new Vector3d(vect.x, vect.y, vect.z);
@@ -777,6 +855,11 @@ namespace VMS.TPS
             {
                 vect.z = Body.CenterPoint.z - patbzshift - pelvisdownshift;
             }
+            else if (bodyloc == "Legs")
+            {
+                vect.z = Body.CenterPoint.z - patbzshift - legsdownshift;
+            }
+
             vect.y = Body.CenterPoint.y + patbyshift;
             vertices.Add(vect);
             Vector3d lbl = new Vector3d(vect.x, vect.y, vect.z);
@@ -862,7 +945,7 @@ namespace VMS.TPS
             int cbht = 0;
             // everything made to make a mesh out of the body structure bounding box (with extensions of the box added to represent the patient's entire body)
 
-            DMesh3 PATBOX = new DMesh3(MeshComponents.VertexNormals);
+            PATBOX = new DMesh3(MeshComponents.VertexNormals);
             for (int i = 0; i < vertices.Count; i++)
             {
                 PATBOX.AppendVertex(new NewVertexInfo(vertices[i]));
@@ -882,7 +965,7 @@ namespace VMS.TPS
 
             //IOWriteResult result = StandardMeshWriter.WriteFile(@"\\Wvvrnimbp01ss\va_data$\filedata\ProgramData\Vision\PublishedScripts\PATBOX.stl", new List<WriteMesh>() { new WriteMesh(PATBOX) }, WriteOptions.Defaults);
 
-            //IOWriteResult result2 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\TestBolus\PATBOX.stl", new List<WriteMesh>() { new WriteMesh(PATBOX) }, WriteOptions.Defaults);
+            //IOWriteResult result2 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\DiskGantry\PATBOX.stl", new List<WriteMesh>() { new WriteMesh(PATBOX) }, WriteOptions.Defaults);
 
             DMesh3 PATBOXCOPY = PATBOX;
 
@@ -894,12 +977,12 @@ namespace VMS.TPS
             Remesher R = new Remesher(PATBOX);
             MeshConstraintUtil.PreserveBoundaryLoops(R);
             R.PreventNormalFlips = true;
-            R.SetTargetEdgeLength(40.0);
+            R.SetTargetEdgeLength(30.0);
             R.SmoothSpeedT = 0.5;
             R.SetProjectionTarget(MeshProjectionTarget.Auto(PATBOXCOPY));
             R.ProjectionMode = Remesher.TargetProjectionMode.Inline;
 
-            for (int k = 0; k < 6; k++)
+            for (int k = 0; k < 8; k++)
             {
                 R.BasicRemeshPass();
             }
@@ -907,7 +990,7 @@ namespace VMS.TPS
 
             // Remeshing settings aren't perfect, bu they are fairly dialed in
 
-            if (PATEINTORIENTATION == "HeadFirstProne")
+            if (PATEINTORIENTATION == "HeadFirstProne" || PATEINTORIENTATION == "FeetFirstProne")
             {
                 PatOrientRotCenter = MeshMeasurements.Centroid(PATBOX);
                 PatOrientRot = new Quaterniond(ZaxisPatOrientRot, 180.0);
@@ -927,23 +1010,17 @@ namespace VMS.TPS
             // probably is a real life setup thing for prone breast plans for example
 
 
-            IOWriteResult result3 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\DiskGantry\PATBOXremeshed.stl", new List<WriteMesh>() { new WriteMesh(PATBOX) }, WriteOptions.Defaults);
+           // IOWriteResult result3 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\DiskGantry\PATBOXremeshed.stl", new List<WriteMesh>() { new WriteMesh(PATBOX) }, WriteOptions.Defaults);
             tempbeam.Add(new WriteMesh(PATBOX));
 
-            DMeshAABBTree3 spatial = new DMeshAABBTree3(PATBOX);
+            spatial = new DMeshAABBTree3(PATBOX);
             spatial.Build();
 
-            return spatial;
+           // return spatial;
         }
 
- 
-
-
-
-
-
-
-        public static List<CollisionAlert> CollisionCheck(PlanSetup plan, string bodyloc, double ht, TextBox ProgOutput, Image image)
+        // START OF COLLISION CHECK PROGRAM. BOXMAKER IS CALLED FROM WITHIN.--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+        public static List<CollisionAlert> CollisionCheck(PlanSetup plan, string bodyloc, double ht, TextBox ProgOutput, Image image, ProgressBar ProgBar)
         {
             // declaration space for outputs and things used between boxmaker and collision check
 
@@ -953,13 +1030,30 @@ namespace VMS.TPS
 
             List<CollisionAlert> collist = new List<CollisionAlert>();
             CollisionAlert colcomp = new CollisionAlert();
+            string strctid;
 
-            bool findCouchSurf = false;
+            double INTERSECTDIST = 50.0;
+            Index2i snear_tids = new Index2i(-1, -1);
+            DistTriangle3Triangle3 STriDist;
+            double ZABSDIST;
+            double reportCang;
+
+            //bool findCouchSurf = false;
             bool findCouchInterior = false;
             bool findProneBrstBoard = false;
 
+            // Now we get the structures we need. Typical safety stuff. First, check if there is a structure set
 
-            // MessageBox.Show("Collision Check initiated! Note, because this program doen't know where within the body the Isocenter is, it has ben over-engineered to compensate. Most likely this program will give false collision alerts for beams with extreme couch kicks (close to 270 degrees or 90 degrees) at gantry angles close to 270 or 90. Any other collsion alert should be taken seriously.");               
+            try
+            {
+                strctid = plan.StructureSet.Id;
+            }
+            catch (NullReferenceException e)
+            {
+                System.Windows.Forms.MessageBox.Show("The plan " + plan.Id + " does not have a structure set!");
+                // no structure set, skip
+            }
+
             // retrieves the body structure
             IEnumerator BR = plan.StructureSet.Structures.GetEnumerator();
             BR.MoveNext();
@@ -968,12 +1062,12 @@ namespace VMS.TPS
 
             Structure Body = (Structure)BR.Current;
 
-            IEnumerator CSR = plan.StructureSet.Structures.GetEnumerator();
-            CSR.MoveNext();
-            CSR.MoveNext();
-            CSR.MoveNext();
+            //IEnumerator CSR = plan.StructureSet.Structures.GetEnumerator();
+            //CSR.MoveNext();
+            //CSR.MoveNext();
+            //CSR.MoveNext();
 
-            Structure CouchSurface = (Structure)CSR.Current;
+            //Structure CouchSurface = (Structure)CSR.Current;
 
             IEnumerator CIR = plan.StructureSet.Structures.GetEnumerator();
             CIR.MoveNext();
@@ -995,21 +1089,37 @@ namespace VMS.TPS
                 {
                     Body = STR;
                 }
-                else if (STR.Id == "CouchSurface")
+                else if (STR.Id.Contains("CouchInterior") || STR.Id.Contains("couchinterior") || STR.Id.Contains("couch interior") || STR.Id.Contains("couch_interior") || STR.Id.Contains("Couch_Interior") || STR.Id.Contains("Couch Interior"))
                 {
-                    CouchSurface = STR;
-                    findCouchSurf = true;
-                }
-                else if (STR.Id == "CouchInterior")
-                {
+                    if (STR.IsEmpty == true || STR.Volume < 0.0)
+                    {
+                        System.Windows.Forms.MessageBox.Show("The Couch Interior structure is not contoured!");
+                        continue;
+                    }
+
                     CouchInterior = STR;
                     findCouchInterior = true;
                 }
-                else if (STR.Id == "Prone_Brst_Board")
+                else if (STR.Id.Contains("Prone_Brst_Board") || STR.Id.Contains("Prone_Bst_Brd") || STR.Id.Contains("Prone_Brst_Brd") || STR.Id.Contains("Prone_Bst_Board") || STR.Id.Contains("Prone Brst Board") || STR.Id.Contains("Prone Bst Brd") || STR.Id.Contains("Prone Brst Brd") || STR.Id.Contains("Prone Bst Board") || STR.Id.Contains("prone_brst_board") || STR.Id.Contains("prone_bst_brd") || STR.Id.Contains("prone_brst_brd") || STR.Id.Contains("prone_bst_board") || STR.Id.Contains("prone brst board") || STR.Id.Contains("prone bst brd") || STR.Id.Contains("pron brst brd") || STR.Id.Contains("prone bst board"))
                 {
+                    if (STR.IsEmpty == true || STR.Volume < 0.0)
+                    {
+                        System.Windows.Forms.MessageBox.Show("The Prone Breast Board structure is not contoured!");
+                        continue;
+                    }
+
                     Prone_Brst_Board = STR;
                     findProneBrstBoard = true;
                 }
+
+                //else if (STR.Id == "CouchSurface" || )
+                //{
+                //    CouchSurface = STR;
+                //    findCouchSurf = true;
+                //}
+
+               // findCouchSurf = false;
+
             }
 
             string PATIENTORIENTATION = null;
@@ -1023,16 +1133,19 @@ namespace VMS.TPS
             {
                 PATIENTORIENTATION = "HeadFirstProne";
             }
-            
-      //      else if(plan.TreatmentOrientation == PatientOrientation.)
-      //      {
+            else if (plan.TreatmentOrientation == PatientOrientation.FeetFirstSupine)
+            {
+                PATIENTORIENTATION = "FeetFirstSupine";
+            }
+            else if (plan.TreatmentOrientation == PatientOrientation.FeetFirstProne)
+            {
+                PATIENTORIENTATION = "FeetFirstProne";
+            }
+
+            // No correction needed for Feet First vs. Head First, but the 180 degree flip is needed for both Prone orientations vs. Supine (Program built off of HFS).
 
 
-      //      }
-
-         
-
-            // start of beam loop
+            // start of beam loop---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
             foreach (Beam beam in plan.Beams)
             {   
 
@@ -1043,21 +1156,30 @@ namespace VMS.TPS
 
                 // ANGLES ARE IN DEGREES
                 List<double> GAngleList = new List<double>();
+                int gantrylistCNT = 0;
                 ControlPointCollection PC = beam.ControlPoints;
                 double CouchStartAngle = PC[0].PatientSupportAngle;
                 double CouchEndAngle = PC[PC.Count - 1].PatientSupportAngle;            // count - 1 is the end becuase the index starts at 0
                 List<WriteMesh> tempbeam = new List<WriteMesh>();
 
+                double? MRGPATBOX = null;
+                double? MRGBCONTOUR = null;
+                double? MRGCSURFACE = null;
+                double? MRGCINTERIOR = null;
+                double? MRGBBOARD = null;
+                bool lastcontigreal = false;
+                
+
                 if (CouchStartAngle != CouchEndAngle)
                 {
                     System.Windows.Forms.MessageBox.Show("WARNING: The patient couch has a different rotation angle at the end of beam " + beam.Id + " in plan " + plan.Id + " than what the beam starts with.");
-                    return collist;
+                    
                 }
                 else if (CouchStartAngle == CouchEndAngle)
                 {
 
                      ProgOutput.AppendText(Environment.NewLine);
-                     ProgOutput.AppendText("Starting analysis of beam " + beam.Id + " in plan " + plan.Id + " .");
+                     ProgOutput.AppendText("Starting analysis of beam " + beam.Id + " in plan " + plan.Id + ".");
                      // MessageBox.Show("Starting analysis of beam " + beam.Id + " in plan " + plan.Id + " .");
 
                     VVector ISO = beam.IsocenterPosition;
@@ -1105,7 +1227,7 @@ namespace VMS.TPS
                  //    MessageBox.Show("uZISOshift point is at: " + uZISOshift);
 
 
-                    DMeshAABBTree3 spatial = BOXMAKER(PATIENTORIENTATION, findCouchSurf, findCouchInterior, findProneBrstBoard, Body, CouchSurface, CouchInterior, Prone_Brst_Board, bodyloc, ht, uXISOshift, uYISOshift, uZISOshift , ProgOutput, plan, image, tempbeam);
+                    BOXMAKER(PATIENTORIENTATION, findCouchInterior, findProneBrstBoard, Body, CouchInterior, Prone_Brst_Board, bodyloc, ht, uXISOshift, uYISOshift, uZISOshift , ProgOutput, plan, image, tempbeam);
 
                    // MessageBox.Show("Isocenter point is at: (" + ISO.x + " ," + ISO.y + " ," + ISO.z + ")");
                    // MessageBox.Show("Image origin is at: (" + Origin.x + " ," + Origin.y + " ," + Origin.z + ")");
@@ -1117,48 +1239,49 @@ namespace VMS.TPS
                     double myX = 0.0;
                     double myY = 0.0;
                 
-                            double ANGLE = 0.0;
-                            double Gangle = 0.0;
-                           // double sourceINVERSExtrans = 0.0;
-                           // double sourceINVERSEztrans = 0.0;
+                    double ANGLE = 0.0;
+                    double Gangle = 0.0;
+                    // double sourceINVERSExtrans = 0.0;
+                    // double sourceINVERSEztrans = 0.0;
 
-                            string gantryXISOshift = null;
-                           // string gantryYISOshift = null;
+                    string gantryXISOshift = null;
+                    // string gantryYISOshift = null;
 
-                            // initial gantry head point construction
-                            double gfxp = 0.0;
-                            double gfyp = 0.0;
-                            double gantrycenterxtrans = 0.0;
-                            double gantrycenterztrans = 0.0;
+                    // initial gantry head point construction
+                    double gfxp = 0.0;
+                    double gfyp = 0.0;
+                    double gantrycenterxtrans = 0.0;
+                    double gantrycenterztrans = 0.0;
 
-                            double xpp = 0.0;
-                            double ypp = 0.0;
-                            // coordinate system transform
+                    double xpp = 0.0;
+                    double ypp = 0.0;
+                    // coordinate system transform
                    
-                            double thetap = 0.0;
+                    double thetap = 0.0;
 
-                            double Backxtrans = 0.0;
-                            double Frontxtrans = 0.0;
-                            double Leftxtrans = 0.0;
-                            double Rightxtrans = 0.0;
+                    double Backxtrans = 0.0;
+                    double Frontxtrans = 0.0;
+                    double Leftxtrans = 0.0;
+                    double Rightxtrans = 0.0;
 
-                            double Backztrans = 0.0;
-                            double Frontztrans = 0.0;
-                            double Leftztrans = 0.0;
-                            double Rightztrans = 0.0;
-                    DMeshAABBTree3.IntersectionsQueryResult intersectlist = new DMeshAABBTree3.IntersectionsQueryResult();
+                    double Backztrans = 0.0;
+                    double Frontztrans = 0.0;
+                    double Leftztrans = 0.0;
+                    double Rightztrans = 0.0;
+                    //  DMeshAABBTree3.IntersectionsQueryResult intersectlist = new DMeshAABBTree3.IntersectionsQueryResult();
                     //  double GantryAngle = 5000.5;
 
 
                     if (beam.MLCPlanType == MLCPlanType.Static)
                     {
-                        string line = null;
                         double GantryStartAngle = 500.0;
                         double GantryEndAngle = 500.0;
                         string ArcDirection = null;
 
                         ProgOutput.AppendText(Environment.NewLine);
                         ProgOutput.AppendText("This is a static MLC beam with no control points. Attempting to get Gantry information for this beam from the ARIA database (this might take a minute)... ");
+
+                        System.Windows.Forms.MessageBox.Show("This is a static MLC beam with no control points. The program will get the gantry information it needs for this beam from the ARIA database.\nA blank terminal window will appear while it does this. A dialogue box will appear that will tell you that the program is busy because it is waiting for the other program to query the database.\nYou will have to click on 'switch to' several times until it is done. The GUI window will reappear when the program is finished.");
 
                         ProcessStartInfo processinfo = new ProcessStartInfo(@"\\wvvrnimbp01ss\va_data$\filedata\ProgramData\Vision\Stand-alone Programs\CollisionCheck_InfoRetrieval\CollisionCheck_InfoRetrieval.exe", plan.Course.Patient.Id + " " + plan.Course.Id + " " + beam.Id + " " + plan.Id);        // path name of the Collision retrieval program
                         processinfo.UseShellExecute = false;
@@ -1167,7 +1290,7 @@ namespace VMS.TPS
 
                         Process GantryAngleRetrieve = new Process();
                         GantryAngleRetrieve.StartInfo = processinfo;
-
+                    
                         bool processstarted = GantryAngleRetrieve.Start();
 
                         StreamReader GantryAngleRetrieveOutput = GantryAngleRetrieve.StandardOutput;
@@ -1222,46 +1345,92 @@ namespace VMS.TPS
                     }
                     else
                     {
-                        ProgOutput.AppendText(Environment.NewLine);
-                        ProgOutput.AppendText("Dynamic MLC plan. Building list of gantry angles from control points ... ");
-
-                        foreach (ControlPoint point in PC)
+                        //System.Windows.Forms.MessageBox.Show("Arc Length: " + beam.ArcLength);
+                        if (beam.ArcLength == 0)
                         {
-                            GAngleList.Add(point.GantryAngle);
-
-                            //  if(PATIENTORIENTATION == "HeadFirstProne")
-                            //  {
-                            //      GantryAngle = point.GantryAngle - 180.0;
-                            //  }
-
-                            // Math.DivRem(point.Index, 6, out int res);
-
-                            //if (point.Index == 1 || point.Index == PC.Count || res == 0)
-                            //{
-
-                            //   if (res == 0)
-                            //  {
-                            //      ProgOutput.AppendText(Environment.NewLine);
-                            //     ProgOutput.AppendText("Control Point " + point.Index + "/" + PC.Count);
-                            // }
-
+                            ProgOutput.AppendText(Environment.NewLine);
+                            ProgOutput.AppendText("Static gantry IMRT beam. Retrieving gantry angle from first MLC control point ... ");
+                            GAngleList.Add(PC.First().GantryAngle);
                         }
+                        else
+                        {
+                            ProgOutput.AppendText(Environment.NewLine);
+                            ProgOutput.AppendText("Moving gantry IMRT beam. Building list of gantry angles from control points ... ");
+
+                            foreach (ControlPoint point in PC)
+                            {
+                                GAngleList.Add(point.GantryAngle);
+
+
+                                //  if(PATIENTORIENTATION == "HeadFirstProne")
+                                //  {
+                                //      GantryAngle = point.GantryAngle - 180.0;
+                                //  }
+
+                                // Math.DivRem(point.Index, 6, out int res);
+
+                                //if (point.Index == 1 || point.Index == PC.Count || res == 0)
+                                //{
+
+                                //   if (res == 0)
+                                //  {
+                                //      ProgOutput.AppendText(Environment.NewLine);
+                                //     ProgOutput.AppendText("Control Point " + point.Index + "/" + PC.Count);
+                                // }
+
+                            }
+                        }
+                       // System.Windows.Forms.MessageBox.Show("Trigger 1");
+                    }
+                    // System.Windows.Forms.MessageBox.Show("Trigger 2");
+
+                    ProgBar.Visible = true;
+                    ProgBar.Minimum = 0;
+                    ProgBar.Value = 1;
+                    ProgBar.Step = 1;
+
+                    if(GAngleList.Count <= 10)
+                    {
+                        ProgBar.Maximum = GAngleList.Count;
+                    }
+                    else
+                    {
+                        ProgBar.Maximum = (GAngleList.Count / 5);
                     }
 
-
-                        foreach (double GantryAngle in GAngleList)
+                    foreach (double GantryAngle in GAngleList)
+                    {
+                        gantrylistCNT++;
+                        // System.Windows.Forms.MessageBox.Show("Gantry ANGLE :  " + GantryAngle + "  ");
+                        //  MessageBox.Show("couch ANGLE :  " + CouchEndAngle + "  ");
+                        if (GAngleList.Count <= 10)
                         {
-                            //  MessageBox.Show("Control Point count: " + TL + ")");
-                            // MessageBox.Show("Gantry ANGLE :  " + GantryAngle + "  ");
-                            //  MessageBox.Show("couch ANGLE :  " + CouchEndAngle + "  ");
+                            ProgOutput.AppendText(Environment.NewLine);
+                            ProgOutput.AppendText("Gantry Angle: " + gantrylistCNT + "/" + GAngleList.Count);
+                            ProgBar.PerformStep();
+                        }
+                        else
+                        {
+                            if (gantrylistCNT % 5 == 0)
+                            {
+                                ProgOutput.AppendText(Environment.NewLine);
+                                ProgOutput.AppendText("Gantry Angle: " + gantrylistCNT + "/" + GAngleList.Count);
+                                ProgBar.PerformStep();
+                            }
+                            else
+                            {
+                                continue;
+                            }
+                        }
 
-                           // ProgOutput.AppendText(Environment.NewLine);
-                            //ProgOutput.AppendText("Conducting Collision analysis and writing STL files to disk...");
+                        //System.Windows.Forms.MessageBox.Show("Trigger 3");
+                        // ProgOutput.AppendText(Environment.NewLine);
+                        //ProgOutput.AppendText("Conducting Collision analysis and writing STL files to disk...");
 
 
-                            //  MessageBox.Show("real couch ANGLE :  " + realangle + "  ");
+                        //  MessageBox.Show("real couch ANGLE :  " + realangle + "  ");
 
-                            VVector APISOURCE = beam.GetSourceLocation(GantryAngle);  // negative Y
+                        VVector APISOURCE = beam.GetSourceLocation(GantryAngle);  // negative Y
                                                                                       // MessageBox.Show("SOURCE (already transformed by API): (" + APISOURCE.x + " ," + APISOURCE.y + " ," + APISOURCE.z + ")");
 
                             /*  So, the issue with the Source position is that it actually does change in accordance with the couch angle,
@@ -1412,15 +1581,15 @@ namespace VMS.TPS
                             }
 
                             VVector origgantrycenter = gantrycenter;
+                        //System.Windows.Forms.MessageBox.Show("Trigger 4");
+                        // MessageBox.Show("gantrycenter before transform is: (" + gantrycenter.x + " ," + gantrycenter.y + " ," + gantrycenter.z + ")");
+                        //gantrycenter now represents the center point of the gantry for all gantry angles at 0 degrees couch angle
+                        // a coordinate transformation for couch angle is performed next
+                        //once the gantry centerpoint and the patient are in the same coordinate system, the edges of the gantry are found from there.
 
-                            // MessageBox.Show("gantrycenter before transform is: (" + gantrycenter.x + " ," + gantrycenter.y + " ," + gantrycenter.z + ")");
-                            //gantrycenter now represents the center point of the gantry for all gantry angles at 0 degrees couch angle
-                            // a coordinate transformation for couch angle is performed next
-                            //once the gantry centerpoint and the patient are in the same coordinate system, the edges of the gantry are found from there.
 
-
-                            // GANTRY CENTER POINT COORDINATE SYSTEM TRANSFORMATION FOR COUCH ANGLE
-                            if (CouchEndAngle >= 270.0 & CouchEndAngle <= 360.0)
+                        // GANTRY CENTER POINT COORDINATE SYSTEM TRANSFORMATION FOR COUCH ANGLE
+                        if (CouchEndAngle >= 270.0 & CouchEndAngle <= 360.0)
                             {
                                 // this is really for 0 to 90 couch angle
                                 //  MessageBox.Show("REAL couch ANGLE :  " + realangle + "  ");
@@ -1515,9 +1684,9 @@ namespace VMS.TPS
                                 LEFTEDGE.x = LEFTEDGE.x + xpp;
                             }
 
-
-                            // GANTRY EDGE POINTS COORDINATE SYSTEM TRANSFORMATION FOR COUCH ANGLE
-                            if (CouchEndAngle >= 270.0 & CouchEndAngle <= 360.0)
+                       // System.Windows.Forms.MessageBox.Show("Trigger 5");
+                        // GANTRY EDGE POINTS COORDINATE SYSTEM TRANSFORMATION FOR COUCH ANGLE
+                        if (CouchEndAngle >= 270.0 & CouchEndAngle <= 360.0)
                             {
 
                                 ANGLE = 360.0 - CouchEndAngle;
@@ -1627,11 +1796,11 @@ namespace VMS.TPS
                             Vector3d Ba = new Vector3d(BACKEDGE.x, BACKEDGE.y, BACKEDGE.z);      //2          7     11   15
                             Vector3d Fr = new Vector3d(FRONTEDGE.x, FRONTEDGE.y, FRONTEDGE.z);    //3         8     12   16
                             Vector3d Ce = new Vector3d(gantrycenter.x, gantrycenter.y, gantrycenter.z);   //4
+                        //System.Windows.Forms.MessageBox.Show("Trigger 6");
 
+                        // MessageBox.Show("Trig");
 
-                            // MessageBox.Show("Trig");
-
-                            List<Index3i> Grangle = new List<Index3i>();
+                        List<Index3i> Grangle = new List<Index3i>();
                             Index3i shangle = new Index3i(3, 4, 0);
                             Grangle.Add(shangle);
 
@@ -1701,7 +1870,6 @@ namespace VMS.TPS
                             zaxisgd.x = zaxisgd_xp;
                             zaxisgd.z = zaxisgd_zp;
 
-
                             if (GantryAngle > 180.0)
                             {
                                 anglebetweengantrynormals = -1 * anglebetweengantrynormals;
@@ -1714,208 +1882,486 @@ namespace VMS.TPS
                             IOWriteResult result42 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\DiskGantry\diskgantry" + beam.Id + GantryAngle + ".stl", new List<WriteMesh>() { new WriteMesh(diskgantry) }, WriteOptions.Defaults);
                             tempbeam.Add(new WriteMesh(diskgantry));
 
+                        // System.Windows.Forms.MessageBox.Show("Trigger 7");
+                        // IOWriteResult result5 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\SquareGantry\Gantry" + beam.Id + GantryAngle + ".stl", new List<WriteMesh>() { new WriteMesh(GANTRY) }, WriteOptions.Defaults);
 
-                            // IOWriteResult result5 = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\SquareGantry\Gantry" + beam.Id + GantryAngle + ".stl", new List<WriteMesh>() { new WriteMesh(GANTRY) }, WriteOptions.Defaults);
+                        // MessageBox.Show("Trig8");
 
-                            // MessageBox.Show("Trig8");
+                        // MessageBox.Show("number of triangles: " + cbht);
 
-                            // MessageBox.Show("number of triangles: " + cbht);
+                        // ProgOutput.AppendText(Environment.NewLine);
+                        // ProgOutput.AppendText("Gantry mesh Construction Done");
 
-                            // ProgOutput.AppendText(Environment.NewLine);
-                            // ProgOutput.AppendText("Gantry mesh Construction Done");
+                        //  DMesh3 PATBOX2 = DMesh3Builder.Build(IEnumerable<Vector3d> vertices, triangles);
 
-                            //  DMesh3 PATBOX2 = DMesh3Builder.Build(IEnumerable<Vector3d> vertices, triangles);
+                        //PATBOX.CheckValidity();
 
-                            //PATBOX.CheckValidity();
+                        //IOWriteResult result = StandardMeshWriter.WriteFile(@"\\Wvvrnimbp01ss\va_data$\filedata\ProgramData\Vision\PublishedScripts\PATBOX.stl", new List<WriteMesh>() { new WriteMesh(PATBOX) }, WriteOptions.Defaults);
 
-                            //IOWriteResult result = StandardMeshWriter.WriteFile(@"\\Wvvrnimbp01ss\va_data$\filedata\ProgramData\Vision\PublishedScripts\PATBOX.stl", new List<WriteMesh>() { new WriteMesh(PATBOX) }, WriteOptions.Defaults);
+                        //  DMeshAABBTree3 GANTRYspatial = new DMeshAABBTree3(GANTRY);
+                        //  GANTRYspatial.Build();
+                       // System.Windows.Forms.MessageBox.Show("Trigger 1");
+                        DMeshAABBTree3 diskgantryspatial = new DMeshAABBTree3(diskgantry);
+                        diskgantryspatial.Build();
+                        reportCang = 360.0 - CouchEndAngle;
+                        if (reportCang == 360.0)
+                        {
+                            reportCang = 0.0;
+                        }
 
-                            //  DMeshAABBTree3 GANTRYspatial = new DMeshAABBTree3(GANTRY);
-                            //  GANTRYspatial.Build();
+                        //      MessageBox.Show("Trig3");
+                        // string boxedgeflag = null;
+                        // bool closebody = false;
+                        // bool coli = true;
 
-                            DMeshAABBTree3 diskgantryspatial = new DMeshAABBTree3(diskgantry);
-                            diskgantryspatial.Build();
+                        /*
+                        snear_tids = diskgantryspatial.FindNearestTriangles(spatial, null, out INTERSECTDIST);
+                        STriDist = MeshQueries.TrianglesDistance(diskgantry, snear_tids.a, PATBOX, snear_tids.b);
+                        System.Windows.Forms.MessageBox.Show("Abs Distance method S: " + ABSDISTANCE(STriDist.Triangle0Closest, STriDist.Triangle1Closest));
 
-                            //      MessageBox.Show("Trig3");
+                        Index2i near_tids = MeshQueries.FindNearestTriangles_LinearSearch(diskgantry, PATBOX, out INTERSECTDIST);
 
-                            string boxedgeflag = null;
-                            bool closebody = false;
-                            bool coli = true;
+                        DistTriangle3Triangle3 TriDist = MeshQueries.TrianglesDistance(diskgantry, near_tids.a, PATBOX, near_tids.b);
 
 
-                            if (findCouchSurf == true)
-                            {
-                                if (diskgantryspatial.TestIntersection(CouchSurfSpatial) == true)
+                        System.Windows.Forms.MessageBox.Show("Abs Distance method S: " + ABSDISTANCE(STriDist.Triangle0Closest, STriDist.Triangle1Closest));
+
+                        System.Windows.Forms.MessageBox.Show("Abs Distance method: " + ABSDISTANCE(TriDist.Triangle0Closest, TriDist.Triangle1Closest));
+                        */
+
+                       // System.Windows.Forms.MessageBox.Show("Trigger 2");
+
+                    /*
+                        // couch surface check - Couch surface structure does not generate properly (its empty) because it is hollow, so ignoring it for now. Hopefully we can merge the interior and surface to get one couch structure that we can use in the future.
+                        if (findCouchSurf == true)
+                        {
+                                snear_tids = diskgantryspatial.FindNearestTriangles(CouchSurfSpatial, null, out INTERSECTDIST);
+                            System.Windows.Forms.MessageBox.Show("Tri IDs: " + snear_tids.a + ", " + snear_tids.b);
+                            if (snear_tids.a == -1 || snear_tids.b == -1)
                                 {
-                                    // MessageBox.Show("gspatial / couch surface collision");
-                                    collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distpoint = "Intersection with Couch", pbodyalert = closebody });
+                                // out of range, do nothing
+                                System.Windows.Forms.MessageBox.Show("Trigger 3");
+                                }
+                                else
+                                {
+                                System.Windows.Forms.MessageBox.Show("Trigger 3.1");
+                                STriDist = MeshQueries.TrianglesDistance(diskgantry, snear_tids.a, PCouchsurf, snear_tids.b);
+                                System.Windows.Forms.MessageBox.Show("Trigger 3.2");
+                                ZABSDIST = ABSDISTANCE(STriDist.Triangle0Closest, STriDist.Triangle1Closest);
+                                System.Windows.Forms.MessageBox.Show("Trigger 4");
+                                if (ZABSDIST <= 50.0)
+                                    {
+                                    //System.Windows.Forms.MessageBox.Show("PATBOX collision");
+                                    System.Windows.Forms.MessageBox.Show("Trigger 5");
+                                    if (MRGPATBOX == null)
+                                        {
+                                            collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = Math.Round(ZABSDIST, 0, MidpointRounding.AwayFromZero), type = "Couch Surface", contiguous = false });
+                                            MRGPATBOX = GantryAngle;
+                                            lastcontigreal = false;
+                                        }
+                                        else if ((MRGPATBOX >= GantryAngle - 15.0) & (MRGPATBOX <= GantryAngle + 15.0))
+                                        {
+                                            // contiguous collisions, do not report
+                                            collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round((double)MRGPATBOX, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = Math.Round(ZABSDIST, 0, MidpointRounding.AwayFromZero), type = "Couch Surface", contiguous = true });
+                                            MRGPATBOX = GantryAngle;
+                                            lastcontigreal = true;
+                                            // System.Windows.Forms.MessageBox.Show("Lastcontigreal set true");
+                                        }
+                                        else
+                                        {
+                                            if (lastcontigreal == true)
+                                            {
+                                                // System.Windows.Forms.MessageBox.Show("Last contig fire");
+                                                collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = Math.Round(ZABSDIST, 0, MidpointRounding.AwayFromZero), type = "Couch Surface", contiguous = false, lastcontig = true });
+                                                MRGPATBOX = GantryAngle;
+                                                lastcontigreal = false;
+                                            }
+                                            else
+                                            {
+                                                collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = Math.Round(ZABSDIST, 0, MidpointRounding.AwayFromZero), type = "Couch Surface", contiguous = false });
+                                                MRGPATBOX = GantryAngle;
+                                                lastcontigreal = false;
+                                            }
+                                        }
+                                    }
+                                    else if (lastcontigreal == true)
+                                    {
+                                        collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = Math.Round(ZABSDIST, 0, MidpointRounding.AwayFromZero), type = "Couch Surface", contiguous = false, lastcontig = true });
+                                        lastcontigreal = false;
+                                    }
                                 }
                             }
+                        */
 
-                            if (findCouchInterior == true)
+                       // System.Windows.Forms.MessageBox.Show("Trigger 6");
+                        // couch interior collision check-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                        if (findCouchInterior == true)
+                        {
+                            snear_tids = diskgantryspatial.FindNearestTriangles(PCouchInteriorSpatial, null, out INTERSECTDIST);
+                            //  System.Windows.Forms.MessageBox.Show("Trigger 7");
+                            if (snear_tids.a == DMesh3.InvalidID || snear_tids.b == DMesh3.InvalidID)
                             {
-                                if (diskgantryspatial.TestIntersection(PCouchInteriorSpatial) == true)
+                                // out of range, do nothing
+                                // System.Windows.Forms.MessageBox.Show("Trigger 8");
+                            }
+                            else
+                            {
+                                STriDist = MeshQueries.TrianglesDistance(diskgantry, snear_tids.a, PCouchInterior, snear_tids.b);
+                                ZABSDIST = ABSDISTANCE(STriDist.Triangle0Closest, STriDist.Triangle1Closest);
+                                //  System.Windows.Forms.MessageBox.Show("Trigger 9");
+                                if (ZABSDIST <= 50.0)
                                 {
-                                    // MessageBox.Show("gspatial / couch interior collision");
-                                    collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distpoint = "Intersection with Couch.", pbodyalert = closebody });
+                                    //System.Windows.Forms.MessageBox.Show("PATBOX collision");
+
+                                    if (MRGPATBOX == null)
+                                    {
+                                        collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(reportCang, 0, MidpointRounding.AwayFromZero), distance = Math.Round(ZABSDIST, 0, MidpointRounding.AwayFromZero), type = "Couch Interior", contiguous = false });
+                                        MRGPATBOX = GantryAngle;
+                                        lastcontigreal = false;
+                                    }
+                                    else if ((MRGPATBOX >= GantryAngle - 15.0) & (MRGPATBOX <= GantryAngle + 15.0))
+                                    {
+                                        // contiguous collisions, do not report
+                                        collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round((double)MRGPATBOX, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(reportCang, 0, MidpointRounding.AwayFromZero), distance = Math.Round(ZABSDIST, 0, MidpointRounding.AwayFromZero), type = "Couch Interior", contiguous = true });
+                                        MRGPATBOX = GantryAngle;
+                                        lastcontigreal = true;
+                                        // System.Windows.Forms.MessageBox.Show("Lastcontigreal set true");
+                                    }
+                                    else
+                                    {
+                                        if (lastcontigreal == true)
+                                        {
+                                            // System.Windows.Forms.MessageBox.Show("Last contig fire");
+                                            collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(reportCang, 0, MidpointRounding.AwayFromZero), distance = Math.Round(ZABSDIST, 0, MidpointRounding.AwayFromZero), type = "Couch Interior", contiguous = false, lastcontig = true });
+                                            MRGPATBOX = GantryAngle;
+                                            lastcontigreal = false;
+                                        }
+                                        else
+                                        {
+                                            collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(reportCang, 0, MidpointRounding.AwayFromZero), distance = Math.Round(ZABSDIST, 0, MidpointRounding.AwayFromZero), type = "Couch Interior", contiguous = false });
+                                            MRGPATBOX = GantryAngle;
+                                            lastcontigreal = false;
+                                        }
+                                    }
+                                }
+                                else if (lastcontigreal == true)
+                                {
+                                    collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(reportCang, 0, MidpointRounding.AwayFromZero), distance = Math.Round(ZABSDIST, 0, MidpointRounding.AwayFromZero), type = "Couch Interior", contiguous = false, lastcontig = true });
+                                    lastcontigreal = false;
                                 }
                             }
-
-                            if (findProneBrstBoard == true)
+                        }
+                        //  System.Windows.Forms.MessageBox.Show("Trigger 10");
+                        //prone breast board collision check-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                        if (findProneBrstBoard == true)
+                        {
+                            snear_tids = diskgantryspatial.FindNearestTriangles(PProne_Brst_BoardSpatial, null, out INTERSECTDIST);
+                          //  System.Windows.Forms.MessageBox.Show("Trigger 11");
+                            if (snear_tids.a == DMesh3.InvalidID || snear_tids.b == DMesh3.InvalidID)
                             {
-                                if (diskgantryspatial.TestIntersection(PProne_Brst_BoardSpatial) == true)
+                                // out of range, do nothing
+                               // System.Windows.Forms.MessageBox.Show("Trigger 12");
+                            }
+                            else
+                            {
+                                    STriDist = MeshQueries.TrianglesDistance(diskgantry, snear_tids.a, PProne_Brst_Board, snear_tids.b);
+                                    ZABSDIST = ABSDISTANCE(STriDist.Triangle0Closest, STriDist.Triangle1Closest);
+                              //  System.Windows.Forms.MessageBox.Show("Trigger 13");
+                                if (ZABSDIST <= 50.0)
                                 {
-                                    // MessageBox.Show("gspatial / Prone Breast Board collision");
-                                    collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distpoint = "Intersection with Prone Breast Board.", pbodyalert = closebody });
+                                        //System.Windows.Forms.MessageBox.Show("PATBOX collision");
+
+                                    if (MRGPATBOX == null)
+                                    {
+                                            collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(reportCang, 0, MidpointRounding.AwayFromZero), distance = Math.Round(ZABSDIST, 0, MidpointRounding.AwayFromZero), type = "Prone Breast Board", contiguous = false });
+                                            MRGPATBOX = GantryAngle;
+                                            lastcontigreal = false;
+                                    }
+                                    else if ((MRGPATBOX >= GantryAngle - 15.0) & (MRGPATBOX <= GantryAngle + 15.0))
+                                    {
+                                            // contiguous collisions, do not report
+                                            collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round((double)MRGPATBOX, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(reportCang, 0, MidpointRounding.AwayFromZero), distance = Math.Round(ZABSDIST, 0, MidpointRounding.AwayFromZero), type = "Prone Breast Board", contiguous = true });
+                                            MRGPATBOX = GantryAngle;
+                                            lastcontigreal = true;
+                                            // System.Windows.Forms.MessageBox.Show("Lastcontigreal set true");
+                                    }
+                                    else
+                                    {
+                                        if (lastcontigreal == true)
+                                        {
+                                                // System.Windows.Forms.MessageBox.Show("Last contig fire");
+                                                collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(reportCang, 0, MidpointRounding.AwayFromZero), distance = Math.Round(ZABSDIST, 0, MidpointRounding.AwayFromZero), type = "Prone Breast Board", contiguous = false, lastcontig = true });
+                                                MRGPATBOX = GantryAngle;
+                                                lastcontigreal = false;
+                                        }
+                                        else
+                                        {
+                                                collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(reportCang, 0, MidpointRounding.AwayFromZero), distance = Math.Round(ZABSDIST, 0, MidpointRounding.AwayFromZero), type = "Prone Breast Board", contiguous = false });
+                                                MRGPATBOX = GantryAngle;
+                                                lastcontigreal = false;
+                                        }
+                                    }
+                                }
+                                else if (lastcontigreal == true)
+                                {
+                                        collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(reportCang, 0, MidpointRounding.AwayFromZero), distance = Math.Round(ZABSDIST, 0, MidpointRounding.AwayFromZero), type = "Prone Breast Board", contiguous = false, lastcontig = true });
+                                        lastcontigreal = false;
                                 }
                             }
+                        }
 
-
-                            if (diskgantryspatial.TestIntersection(spatial) == true)
+                        //  System.Windows.Forms.MessageBox.Show("Trigger 14");
+                        //PATBOX collision check----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                        snear_tids = diskgantryspatial.FindNearestTriangles(spatial, null, out INTERSECTDIST);
+                        //   System.Windows.Forms.MessageBox.Show("Trigger 15");
+                        if (snear_tids.a == DMesh3.InvalidID || snear_tids.b == DMesh3.InvalidID)
+                        {
+                            // out of range, do nothing
+                            //System.Windows.Forms.MessageBox.Show("PATBOX out of range");
+                           // System.Windows.Forms.MessageBox.Show("Trigger 16");
+                        }
+                        else
+                        {
+                                STriDist = MeshQueries.TrianglesDistance(diskgantry, snear_tids.a, PATBOX, snear_tids.b);
+                                ZABSDIST = ABSDISTANCE(STriDist.Triangle0Closest, STriDist.Triangle1Closest);
+                                //    System.Windows.Forms.MessageBox.Show("Trigger 17");
+                            if (ZABSDIST <= 50.0)
                             {
-                                // MessageBox.Show("gspatial / spatial(patient box) collision");
+                                    // System.Windows.Forms.MessageBox.Show("PATBOX collision");
 
-                                if (diskgantryspatial.TestIntersection(PBodyContourSpatial) == true)
+                                if (MRGPATBOX == null)
                                 {
-                                    closebody = true;
+                                        collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(reportCang, 0, MidpointRounding.AwayFromZero), distance = Math.Round(ZABSDIST, 0, MidpointRounding.AwayFromZero), type = "PATBOX", contiguous = false });
+                                        MRGPATBOX = GantryAngle;
+                                        lastcontigreal = false;
+                                   // System.Windows.Forms.MessageBox.Show("Trigger 18");
                                 }
-
-                                //so segment intersections work, just need to figure out what to do with it
-
-                                /*
-                                        if(closebody == false & pintersect.point0.z < pbmaxz & pintersect.point0.z > pbminz)
-                                        {
-                                            coli = false;
-                                        }
-                                */
-
-                                /*
-                                        if ((pintersect.point0.x >= pminx & pintersect.point0.x <= (pminx + 30.0)) & (pintersect.point1.x >= pminx & pintersect.point1.x <= (pminx + 30.0)) & (pintersect.point0.y >= pminy & pintersect.point0.y <= (pminy + 30.0)) & (pintersect.point1.y >= pminy & pintersect.point1.y <= (pminy + 30.0)))
-                                        {
-                                            boxedgeflag = "upper left";
-                                        }
-                                        else if ((pintersect.point0.x <= pmaxx & pintersect.point0.x >= (pmaxx - 30.0)) & (pintersect.point1.x <= pmaxx & pintersect.point1.x >= (pmaxx - 30.0)) & (pintersect.point0.y >= pminy & pintersect.point0.y <= (pminy + 30.0)) & (pintersect.point1.y >= pminy & pintersect.point1.y <= (pminy + 30.0)))
-                                        {
-                                            boxedgeflag = "upper right";
-                                        }
-                                        else if ((pintersect.point0.x <= pmaxx & pintersect.point0.x >= (pmaxx - 30.0)) & (pintersect.point1.x <= pmaxx & pintersect.point1.x >= (pmaxx - 30.0)) & (pintersect.point0.y <= pmaxy & pintersect.point0.y >= (pmaxy - 30.0)) & (pintersect.point1.y <= pmaxy & pintersect.point1.y >= (pmaxy - 30.0)))
-                                        {
-                                            boxedgeflag = "lower right";
-                                        }
-                                        else if ((pintersect.point0.x >= pminx & pintersect.point0.x <= (pminx + 30.0)) & (pintersect.point1.x >= pminx & pintersect.point1.x <= (pminx + 30.0)) & (pintersect.point0.y <= pmaxy & pintersect.point0.y >= (pmaxy - 30.0)) & (pintersect.point1.y <= pmaxy & pintersect.point1.y >= (pmaxy - 30.0)))
-                                        {
-                                            boxedgeflag = "lower left";
-                                        }
-                                */
-
-                                // Meshint = pintersect.point;                             
-
-
-                                if (coli == true)
+                                else if ((MRGPATBOX >= GantryAngle - 15.0) & (MRGPATBOX <= GantryAngle + 15.0))
                                 {
-                                    collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distpoint = "Intersection with patient bounding box.", pbodyalert = closebody });
-                                }
+                                    if (GAngleList.Count - gantrylistCNT < 5)
+                                    {
+                                        // if at the end of the gantry angle list, 
+                                        collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GAngleList.Last(), 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(reportCang, 0, MidpointRounding.AwayFromZero), distance = Math.Round(ZABSDIST, 0, MidpointRounding.AwayFromZero), type = "PATBOX", contiguous = false, lastcontig = true });
 
+                                    }
+                                    else
+                                    {
+                                        // contiguous collisions, do not report
+                                        collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round((double)MRGPATBOX, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(reportCang, 0, MidpointRounding.AwayFromZero), distance = Math.Round(ZABSDIST, 0, MidpointRounding.AwayFromZero), type = "PATBOX", contiguous = true });
+                                        MRGPATBOX = GantryAngle;
+                                        lastcontigreal = true;
+                                    }
+                                    //  System.Windows.Forms.MessageBox.Show("Trigger 19");
+                                    //System.Windows.Forms.MessageBox.Show("Lastcontigreal set true");
+                                }
+                                else
+                                {
+                                    if (lastcontigreal == true)
+                                    {
+                                            // System.Windows.Forms.MessageBox.Show("Last contig fire");
+                                            collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(reportCang, 0, MidpointRounding.AwayFromZero), distance = Math.Round(ZABSDIST, 0, MidpointRounding.AwayFromZero), type = "PATBOX", contiguous = false, lastcontig = true });
+                                            MRGPATBOX = GantryAngle;
+                                            lastcontigreal = false;
+                                      //  System.Windows.Forms.MessageBox.Show("Trigger 20");
+                                    }
+                                    else
+                                    {
+                                            collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(reportCang, 0, MidpointRounding.AwayFromZero), distance = Math.Round(ZABSDIST, 0, MidpointRounding.AwayFromZero), type = "PATBOX", contiguous = false });
+                                            MRGPATBOX = GantryAngle;
+                                            lastcontigreal = false;
+                                       // System.Windows.Forms.MessageBox.Show("Trigger 21");
+                                    }
+                                }
                             }
-
-                            //foreach (int vert in PATBOX.VertexIndices())
-                            //{
-
-                            /*
-
-                               for (int ci = 0; ci <= PATBOX.MaxVertexID; ci++)
-                               { 
-                               if(PATBOX.IsVertex(ci) == false)
-                               {
-                                   continue;
-                               }
+                            else if (lastcontigreal == true)
+                            {
+                                    collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(reportCang, 0, MidpointRounding.AwayFromZero), distance = Math.Round(ZABSDIST, 0, MidpointRounding.AwayFromZero), type = "PATBOX", contiguous = false, lastcontig = true });
+                                    lastcontigreal = false;
+                                    // System.Windows.Forms.MessageBox.Show("Trigger 22");
+                            }
+                        }
+                        
+                        //   System.Windows.Forms.MessageBox.Show("Trigger 23");
 
 
-                               Vector3d distpoint = PATBOX.GetVertex(ci);
+                        /*
 
-                               patlist.Add(distpoint);
-
-
-
-                               VVector Vect = new VVector(distpoint.x, distpoint.y, distpoint.z);
-
-                               DistRightEdge = VVector.Distance(Vect, RIGHTEDGE);
-                               DistLeftEdge = VVector.Distance(Vect, LEFTEDGE);
-                               DistBackEdge = VVector.Distance(Vect, BACKEDGE);
-                               DistFrontEdge = VVector.Distance(Vect, FRONTEDGE);
-                               Distgf = VVector.Distance(Vect, gantrycenter);
-
-                               if (DistRightEdge <= 50.0)
-                               {
-                                   collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(GantryAngle, 1, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = Math.Round(DistRightEdge, 1, MidpointRounding.AwayFromZero), distpoint = "Right Edge", Gantrypoint = RIGHTEDGE, Patpoint = Vect });
-
-
-
-                               }
-                               else if (DistLeftEdge <= 50.0)
-                               {
-                                   collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(GantryAngle, 1, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = Math.Round(DistLeftEdge, 1, MidpointRounding.AwayFromZero), distpoint = "Left Edge", Gantrypoint = LEFTEDGE, Patpoint = Vect });
-
-
-
-                               }
-                               else if (DistBackEdge <= 50.0)
-                               {
-                                   collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(GantryAngle, 1, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = Math.Round(DistBackEdge, 1, MidpointRounding.AwayFromZero), distpoint = "Back Edge", Gantrypoint = BACKEDGE, Patpoint = Vect });
-
-
-
-                               }
-                               else if (DistFrontEdge <= 50.0)
-                               {
-                                   collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(GantryAngle, 1, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = Math.Round(DistFrontEdge, 1, MidpointRounding.AwayFromZero), distpoint = "Front Edge", Gantrypoint = FRONTEDGE, Patpoint = Vect });
-
-
-
-                               }
-                               else if (Distgf <= 50.0)
-                               {
-                                   collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(GantryAngle, 1, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = Math.Round(Distgf, 1, MidpointRounding.AwayFromZero), distpoint = "Center", Gantrypoint = gantrycenter, Patpoint = Vect });
-
-
-
-                               }
-
-                               // ProgOutput.AppendText(Environment.NewLine);
-                               // ProgOutput.AppendText("vert: " + vert + "/" + PATBOX.VertexCount);
-
-                           }
+                                //body contour collision check
+                                snear_tids = diskgantryspatial.FindNearestTriangles(PBodyContourSpatial, null, out INTERSECTDIST);
+                                if (snear_tids.a == DMesh3.InvalidID || snear_tids.b == DMesh3.InvalidID)
+                                {
+                                    // out of range, do nothing
+                                    System.Windows.Forms.MessageBox.Show("body contour out of range");
+                                }   
+                                else
+                                {
+                                    STriDist = MeshQueries.TrianglesDistance(diskgantry, snear_tids.a, PBodyContour, snear_tids.b);
+                                    ZABSDIST = ABSDISTANCE(STriDist.Triangle0Closest, STriDist.Triangle1Closest);
+                                    if (ZABSDIST <= 50.0)
+                                    {
+                                        if (collist.Contains(new CollisionAlert { type = "Body Contour" }))
+                                        {
+                                            if (collist.FindLast(l => l.type == "Body Contour").gantryangle >= GantryAngle - 10.0 && collist.FindLast(l => l.type == "Body Contour").gantryangle <= GantryAngle + 10.0)
+                                            {
+                                                //repeat, assume same contiguous collision and do not print out
+                                                collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = ZABSDIST, type = "Body Contour", contiguous = true });
+                                            }
+                                            else
+                                            {
+                                            collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = Math.Round(ZABSDIST, 0, MidpointRounding.AwayFromZero), type = "Body Contour", contiguous = false });
+                                            }
+                                        }
+                                        else
+                                        {
+                                        collist.Add(new CollisionAlert { beam = beam.Id, gantryangle = Math.Round(GantryAngle, 0, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = Math.Round(ZABSDIST, 0, MidpointRounding.AwayFromZero), type = "Body Contour", contiguous = false });
+                                        }
+                                    }
+                                }
 
                         */
 
 
-                            /*
-                               colcomp = collist.FindLast(
-                               delegate (CollisionAlert ca)
-                               {
-                                   return ca.distpoint == "Right Edge" & ca.controlpoint == (point.Index - 1) & VVector.Distance(Vect, ca.Patpoint) <= 70.0);
-                               });
-                            */
+
+
+                        //so segment intersections work, just need to figure out what to do with it
+
+                        /*
+                                if(closebody == false & pintersect.point0.z < pbmaxz & pintersect.point0.z > pbminz)
+                                {
+                                    coli = false;
+                                }
+                        */
+
+                        /*
+                                if ((pintersect.point0.x >= pminx & pintersect.point0.x <= (pminx + 30.0)) & (pintersect.point1.x >= pminx & pintersect.point1.x <= (pminx + 30.0)) & (pintersect.point0.y >= pminy & pintersect.point0.y <= (pminy + 30.0)) & (pintersect.point1.y >= pminy & pintersect.point1.y <= (pminy + 30.0)))
+                                {
+                                    boxedgeflag = "upper left";
+                                }
+                                else if ((pintersect.point0.x <= pmaxx & pintersect.point0.x >= (pmaxx - 30.0)) & (pintersect.point1.x <= pmaxx & pintersect.point1.x >= (pmaxx - 30.0)) & (pintersect.point0.y >= pminy & pintersect.point0.y <= (pminy + 30.0)) & (pintersect.point1.y >= pminy & pintersect.point1.y <= (pminy + 30.0)))
+                                {
+                                    boxedgeflag = "upper right";
+                                }
+                                else if ((pintersect.point0.x <= pmaxx & pintersect.point0.x >= (pmaxx - 30.0)) & (pintersect.point1.x <= pmaxx & pintersect.point1.x >= (pmaxx - 30.0)) & (pintersect.point0.y <= pmaxy & pintersect.point0.y >= (pmaxy - 30.0)) & (pintersect.point1.y <= pmaxy & pintersect.point1.y >= (pmaxy - 30.0)))
+                                {
+                                    boxedgeflag = "lower right";
+                                }
+                                else if ((pintersect.point0.x >= pminx & pintersect.point0.x <= (pminx + 30.0)) & (pintersect.point1.x >= pminx & pintersect.point1.x <= (pminx + 30.0)) & (pintersect.point0.y <= pmaxy & pintersect.point0.y >= (pmaxy - 30.0)) & (pintersect.point1.y <= pmaxy & pintersect.point1.y >= (pmaxy - 30.0)))
+                                {
+                                    boxedgeflag = "lower left";
+                                }
+                        */
+
+                        // Meshint = pintersect.point;                             
+
+
+
+
+
+                        //foreach (int vert in PATBOX.VertexIndices())
+                        //{
+
+                        /*
+
+                           for (int ci = 0; ci <= PATBOX.MaxVertexID; ci++)
+                           { 
+                           if(PATBOX.IsVertex(ci) == false)
+                           {
+                               continue;
+                           }
+
+
+                           Vector3d distpoint = PATBOX.GetVertex(ci);
+
+                           patlist.Add(distpoint);
+
+
+
+                           VVector Vect = new VVector(distpoint.x, distpoint.y, distpoint.z);
+
+                           DistRightEdge = VVector.Distance(Vect, RIGHTEDGE);
+                           DistLeftEdge = VVector.Distance(Vect, LEFTEDGE);
+                           DistBackEdge = VVector.Distance(Vect, BACKEDGE);
+                           DistFrontEdge = VVector.Distance(Vect, FRONTEDGE);
+                           Distgf = VVector.Distance(Vect, gantrycenter);
+
+                           if (DistRightEdge <= 50.0)
+                           {
+                               collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(GantryAngle, 1, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = Math.Round(DistRightEdge, 1, MidpointRounding.AwayFromZero), distpoint = "Right Edge", Gantrypoint = RIGHTEDGE, Patpoint = Vect });
+
+
+
+                           }
+                           else if (DistLeftEdge <= 50.0)
+                           {
+                               collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(GantryAngle, 1, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = Math.Round(DistLeftEdge, 1, MidpointRounding.AwayFromZero), distpoint = "Left Edge", Gantrypoint = LEFTEDGE, Patpoint = Vect });
+
+
+
+                           }
+                           else if (DistBackEdge <= 50.0)
+                           {
+                               collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(GantryAngle, 1, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = Math.Round(DistBackEdge, 1, MidpointRounding.AwayFromZero), distpoint = "Back Edge", Gantrypoint = BACKEDGE, Patpoint = Vect });
+
+
+
+                           }
+                           else if (DistFrontEdge <= 50.0)
+                           {
+                               collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(GantryAngle, 1, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = Math.Round(DistFrontEdge, 1, MidpointRounding.AwayFromZero), distpoint = "Front Edge", Gantrypoint = FRONTEDGE, Patpoint = Vect });
+
+
+
+                           }
+                           else if (Distgf <= 50.0)
+                           {
+                               collist.Add(new CollisionAlert { beam = beam.Id, controlpoint = point.Index, gantryangle = Math.Round(GantryAngle, 1, MidpointRounding.AwayFromZero), couchangle = Math.Round(CouchEndAngle, 1, MidpointRounding.AwayFromZero), distance = Math.Round(Distgf, 1, MidpointRounding.AwayFromZero), distpoint = "Center", Gantrypoint = gantrycenter, Patpoint = Vect });
+
+
+
+                           }
+
+                           // ProgOutput.AppendText(Environment.NewLine);
+                           // ProgOutput.AppendText("vert: " + vert + "/" + PATBOX.VertexCount);
+
+                       }
+
+                    */
+
+
+                        /*
+                           colcomp = collist.FindLast(
+                           delegate (CollisionAlert ca)
+                           {
+                               return ca.distpoint == "Right Edge" & ca.controlpoint == (point.Index - 1) & VVector.Distance(Vect, ca.Patpoint) <= 70.0);
+                           });
+                        */
 
 
 
 
 
 
-                            //  MessageBox.Show("PATBOX vert  loop done");
+                        //  MessageBox.Show("PATBOX vert  loop done");
 
-                        }  // ends gantry angle loop
+                    }  // ends gantry angle loop
                            
                 }    // ends if counch angle start = couch angle end
 
                 //      MessageBox.Show("COUCH LOOP DONE    ");
 
+                IOWriteResult EVERY = StandardMeshWriter.WriteFile(@"\\ntfs16\Therapyphysics\Treatment Planning Systems\Eclipse\Scripting common files\Collision_Check_STL_files\" + plan.Course.Patient.Id + "_" + plan.Course.Id + "_" + plan.Id + "_" + "Beam_" + beam.Id + ".stl", tempbeam , WriteOptions.Defaults);
+              //  FileInfo file = new FileInfo(@"\\ntfs16\Therapyphysics\Treatment Planning Systems\Eclipse\Scripting common files\Collision_Check_STL_files\" + plan.Course.Patient.Id + "_" + plan.Course.Id + "_" + plan.Id + "_" + "Beam_" + beam.Id + ".stl");
 
-                IOWriteResult EVERY = StandardMeshWriter.WriteFile(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\DiskGantry\Beam_" + beam.Id + ".stl", tempbeam , WriteOptions.Defaults);
+             //   bool ftest = IsFileLocked(file);
 
-                MainWindow window = new MainWindow(@"C:\Users\ztm00\Desktop\STL Files\CollisionCheck\DiskGantry\Beam_" + beam.Id + ".stl");
-                window.Show();
+             //   if (ftest == false)
+             //   {
+             //       MainWindow window = new MainWindow(@"\\ntfs16\Therapyphysics\Treatment Planning Systems\Eclipse\Scripting common files\Collision_Check_STL_files\" + plan.Course.Patient.Id + "_" + plan.Course.Id + "_" + plan.Id + "_" + "Beam_" + beam.Id + ".stl");
+             //       window.Show();
+             //   }
+                
 
+                
 
             } // ends beam loop
 

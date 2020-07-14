@@ -38,6 +38,7 @@
             this.Heightbox = new System.Windows.Forms.TextBox();
             this.Hunit = new System.Windows.Forms.Label();
             this.ProgOutput = new System.Windows.Forms.TextBox();
+            this.ProgBar = new System.Windows.Forms.ProgressBar();
             this.SuspendLayout();
             // 
             // Planlist
@@ -45,27 +46,27 @@
             this.Planlist.Font = new System.Drawing.Font("Goudy Old Style", 14.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.Planlist.FormattingEnabled = true;
             this.Planlist.ItemHeight = 23;
-            this.Planlist.Location = new System.Drawing.Point(16, 188);
+            this.Planlist.Location = new System.Drawing.Point(16, 126);
             this.Planlist.Name = "Planlist";
-            this.Planlist.Size = new System.Drawing.Size(315, 234);
+            this.Planlist.Size = new System.Drawing.Size(315, 165);
             this.Planlist.TabIndex = 0;
             this.Planlist.SelectedIndexChanged += new System.EventHandler(this.PlanList_SelectedIndexChanged);
             // 
             // CollOutput
             // 
             this.CollOutput.Font = new System.Drawing.Font("Goudy Old Style", 13F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.CollOutput.Location = new System.Drawing.Point(782, 8);
+            this.CollOutput.Location = new System.Drawing.Point(768, 126);
             this.CollOutput.Multiline = true;
             this.CollOutput.Name = "CollOutput";
             this.CollOutput.ReadOnly = true;
             this.CollOutput.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.CollOutput.Size = new System.Drawing.Size(432, 594);
+            this.CollOutput.Size = new System.Drawing.Size(523, 488);
             this.CollOutput.TabIndex = 1;
             // 
             // Executebutton
             // 
             this.Executebutton.Font = new System.Drawing.Font("Goudy Old Style", 14.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.Executebutton.Location = new System.Drawing.Point(611, 517);
+            this.Executebutton.Location = new System.Drawing.Point(13, 539);
             this.Executebutton.Name = "Executebutton";
             this.Executebutton.Size = new System.Drawing.Size(148, 85);
             this.Executebutton.TabIndex = 2;
@@ -80,7 +81,7 @@
             this.DirectionsBox.Multiline = true;
             this.DirectionsBox.Name = "DirectionsBox";
             this.DirectionsBox.ReadOnly = true;
-            this.DirectionsBox.Size = new System.Drawing.Size(315, 159);
+            this.DirectionsBox.Size = new System.Drawing.Size(1292, 112);
             this.DirectionsBox.TabIndex = 3;
             this.DirectionsBox.Text = resources.GetString("DirectionsBox.Text");
             // 
@@ -93,10 +94,11 @@
             "Head",
             "Thorax",
             "Abdomen",
-            "Pelvis"});
-            this.imagelocationlist.Location = new System.Drawing.Point(16, 428);
+            "Pelvis",
+            "Legs"});
+            this.imagelocationlist.Location = new System.Drawing.Point(16, 307);
             this.imagelocationlist.Name = "imagelocationlist";
-            this.imagelocationlist.Size = new System.Drawing.Size(166, 88);
+            this.imagelocationlist.Size = new System.Drawing.Size(113, 109);
             this.imagelocationlist.TabIndex = 4;
             this.imagelocationlist.SelectedIndexChanged += new System.EventHandler(this.imagelocationlist_SelectedIndexChanged);
             // 
@@ -104,7 +106,7 @@
             // 
             this.heightlabel.AutoSize = true;
             this.heightlabel.Font = new System.Drawing.Font("Goudy Old Style", 14.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.heightlabel.Location = new System.Drawing.Point(12, 537);
+            this.heightlabel.Location = new System.Drawing.Point(9, 433);
             this.heightlabel.Name = "heightlabel";
             this.heightlabel.Size = new System.Drawing.Size(120, 23);
             this.heightlabel.TabIndex = 5;
@@ -114,7 +116,7 @@
             // 
             this.Heightbox.AcceptsReturn = true;
             this.Heightbox.Font = new System.Drawing.Font("Goudy Old Style", 14.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.Heightbox.Location = new System.Drawing.Point(16, 563);
+            this.Heightbox.Location = new System.Drawing.Point(12, 459);
             this.Heightbox.Name = "Heightbox";
             this.Heightbox.Size = new System.Drawing.Size(103, 30);
             this.Heightbox.TabIndex = 6;
@@ -124,7 +126,7 @@
             // 
             this.Hunit.AutoSize = true;
             this.Hunit.Font = new System.Drawing.Font("Goudy Old Style", 14.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.Hunit.Location = new System.Drawing.Point(121, 566);
+            this.Hunit.Location = new System.Drawing.Point(121, 466);
             this.Hunit.Name = "Hunit";
             this.Hunit.Size = new System.Drawing.Size(33, 23);
             this.Hunit.TabIndex = 7;
@@ -133,7 +135,7 @@
             // ProgOutput
             // 
             this.ProgOutput.Font = new System.Drawing.Font("Goudy Old Style", 13F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.ProgOutput.Location = new System.Drawing.Point(354, 8);
+            this.ProgOutput.Location = new System.Drawing.Point(351, 126);
             this.ProgOutput.Multiline = true;
             this.ProgOutput.Name = "ProgOutput";
             this.ProgOutput.ReadOnly = true;
@@ -141,11 +143,22 @@
             this.ProgOutput.Size = new System.Drawing.Size(393, 488);
             this.ProgOutput.TabIndex = 8;
             // 
+            // ProgBar
+            // 
+            this.ProgBar.ForeColor = System.Drawing.Color.Lime;
+            this.ProgBar.Location = new System.Drawing.Point(351, 630);
+            this.ProgBar.Name = "ProgBar";
+            this.ProgBar.Size = new System.Drawing.Size(953, 24);
+            this.ProgBar.Style = System.Windows.Forms.ProgressBarStyle.Continuous;
+            this.ProgBar.TabIndex = 9;
+            this.ProgBar.Visible = false;
+            // 
             // GUI
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1227, 614);
+            this.ClientSize = new System.Drawing.Size(1317, 661);
+            this.Controls.Add(this.ProgBar);
             this.Controls.Add(this.ProgOutput);
             this.Controls.Add(this.Hunit);
             this.Controls.Add(this.Heightbox);
@@ -173,5 +186,6 @@
         private System.Windows.Forms.Label Hunit;
         private System.Windows.Forms.ListBox imagelocationlist;
         private System.Windows.Forms.TextBox ProgOutput;
+        private System.Windows.Forms.ProgressBar ProgBar;
     }
 }

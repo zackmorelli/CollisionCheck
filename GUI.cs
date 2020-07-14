@@ -5,12 +5,15 @@ using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Linq;
+using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using VMS.TPS.Common.Model.API;
 using VMS.TPS.Common.Model.Types;
 using VMS.TPS;
+
 
 /*
     Collision Check - GUI
@@ -72,6 +75,8 @@ namespace CollisionCheck
         
         private void EXECUTE(IEnumerable<PlanSetup> Plans, VMS.TPS.Common.Model.API.Image image)
         {
+            ProgOutput.Clear();
+            CollOutput.Clear();
             // need to make plan/plansum pick more robust using PL
             // MessageBox.Show("Trig EXE - 1");
 
@@ -194,52 +199,102 @@ namespace CollisionCheck
             ProgOutput.AppendText(Environment.NewLine);
             ProgOutput.AppendText("Program starting...");
 
-            List<Script.CollisionAlert> output = Script.CollisionCheck(Plan, bodyloc, ht, ProgOutput, image);
+            List<Script.CollisionAlert> output = Script.CollisionCheck(Plan, bodyloc, ht, ProgOutput, image, ProgBar);
 
             MessageBox.Show("Collision analysis completed");
-            MessageBox.Show("Collisions detected: " + output.Count);
-
-            if (output.Count > 0)
+            if (output.Count == 0)
             {
-
-               // Patient Point: (" + Math.Round(alert.Patpoint.x, 1, MidpointRounding.AwayFromZero) + ", " + Math.Round(alert.Gantrypoint.y, 1, MidpointRounding.AwayFromZero) + ", " + Math.Round(alert.Gantrypoint.z, 1, MidpointRounding.AwayFromZero) + ")
-                foreach (Script.CollisionAlert alert in output)
-                {
-                    CollOutput.AppendText(Environment.NewLine);
-                    CollOutput.AppendText(Environment.NewLine);
-                    CollOutput.AppendText("COLLISION: Beam: " + alert.beam + "  Couch Angle: " + alert.couchangle + Environment.NewLine + "  Gantry Angle: " + alert.gantryangle + "   " + alert.distpoint);                                           
-                    CollOutput.AppendText(Environment.NewLine);
-
-                    if(alert.edgeclip == "upper left")
-                    {
-                        CollOutput.AppendText("Note: This point is close to the upper left edge of the patient bounding box and is likely clipping through this corner and not at risk of colliding with the patient.");
-                    }
-                    else if (alert.edgeclip == "upper right")
-                    {
-                        CollOutput.AppendText("Note: This point is close to the upper right edge of the patient bounding box and is likely clipping through this corner and not at risk of colliding with the patient.");
-                    }
-                    else if (alert.edgeclip == "lower left")
-                    {
-                        CollOutput.AppendText("Note: This point is close to the lower left edge of the patient bounding box and is likely clipping through this corner and not at risk of colliding with the patient.");
-                    }
-                    else if (alert.edgeclip == "lower right")
-                    {
-                        CollOutput.AppendText("Note: This point is close to the lower right edge of the patient bounding box and is likely clipping through this corner and not at risk of colliding with the patient.");
-                    }
-
-                    if (alert.pbodyalert == true)
-                    {
-                        CollOutput.AppendText(Environment.NewLine);
-                        CollOutput.AppendText("DANGER: THIS POINT INTERSECTS THE BODY CONTOUR OF THE PATIENT AND WILL RESULT IN A COLLISION.");
-                    }
-
-                }
-                MessageBox.Show("End - at least one collision outputted/in list");
+                MessageBox.Show("No Collisions detected!");
             }
             else
             {
-                MessageBox.Show("End - No collisions in list");
+                MessageBox.Show("Collisions detected!");
             }
+
+            if (output.Count > 0)
+            {
+               // Patient Point: (" + Math.Round(alert.Patpoint.x, 1, MidpointRounding.AwayFromZero) + ", " + Math.Round(alert.Gantrypoint.y, 1, MidpointRounding.AwayFromZero) + ", " + Math.Round(alert.Gantrypoint.z, 1, MidpointRounding.AwayFromZero) + ")
+                foreach (Script.CollisionAlert alert in output)
+                {
+                    if(alert.contiguous == true)
+                    {
+                        continue;
+                    }
+
+                    if (alert.lastcontig == false)
+                    {
+                        CollOutput.AppendText(Environment.NewLine);
+                        CollOutput.AppendText(Environment.NewLine);
+                        CollOutput.AppendText("Beam " + alert.beam + ": START of gantry collision area with " + alert.type + "." + Environment.NewLine + "Couch Angle: " + alert.couchangle + "  Gantry Angle: " + alert.gantryangle + "  Distance: " + alert.distance + " mm");
+                        CollOutput.AppendText(Environment.NewLine);
+                    }
+                    else if (alert.lastcontig == true)
+                    {
+                        CollOutput.AppendText(Environment.NewLine);
+                        CollOutput.AppendText(Environment.NewLine);
+                        CollOutput.AppendText("Beam " + alert.beam + ": END of gantry collision area with " + alert.type + "." + Environment.NewLine + "Couch Angle: " + alert.couchangle + "  Gantry Angle: " + alert.gantryangle + "  Distance: " + alert.distance + " mm");
+                        CollOutput.AppendText(Environment.NewLine);
+                    }
+                }
+
+                Thread.Sleep(1000); //wait 1 seconds
+                MessageBox.Show("A separate window depicting an image of the 3D collision model will now open for each beam where a collision was detected. You can click and drag your mouse (slowly) to rotate the image and use the mouse wheel to zoom in and out.");
+          
+                List<string> beam_distinct_enforcer = new List<string>();
+
+                int wincnt = 0;
+
+                foreach(Script.CollisionAlert al in output)
+                {
+                    if (wincnt > 0)
+                    {
+                        if(beam_distinct_enforcer.Last() == al.beam)
+                        {
+                            //same beam, skip
+                            continue;
+                        }
+                    }
+
+                    beam_distinct_enforcer.Add(al.beam);
+                        
+                    FileInfo file = new FileInfo(@"\\ntfs16\Therapyphysics\Treatment Planning Systems\Eclipse\Scripting common files\Collision_Check_STL_files\" + Plan.Course.Patient.Id + "_" + Plan.Course.Id + "_" + Plan.Id + "_" + "Beam_" + al.beam + ".stl");
+                    bool ftest = IsFileLocked(file, al);
+                    if (ftest == false)
+                    {
+                        _3DRender.MainWindow window = new _3DRender.MainWindow(@"\\ntfs16\Therapyphysics\Treatment Planning Systems\Eclipse\Scripting common files\Collision_Check_STL_files\" + Plan.Course.Patient.Id + "_" + Plan.Course.Id + "_" + Plan.Id + "_" + "Beam_" + al.beam + ".stl");
+                        window.Show();
+                    }
+                    wincnt++;
+                }
+                MessageBox.Show("All images have been displayed in their own window (Except if that pesky IO error happened). You can close each window, as well as the GUI, when you are done. The GUI window should now reappear in front of you");
+
+                this.WindowState = FormWindowState.Normal;
+                this.Activate();
+            }
+        }
+
+        protected static bool IsFileLocked(FileInfo file, Script.CollisionAlert al)
+        {
+            try
+            {
+                using (FileStream stream = file.Open(FileMode.Open, FileAccess.Read, FileShare.None))
+                {
+                    stream.Close();
+                }
+            }
+            catch (IOException e)
+            {
+                System.Windows.Forms.MessageBox.Show("An IOException occured when attempting to open the image file for the beam " + al.beam +  "." + Environment.NewLine + " This file is either 1) Still being written to. 2) Being processed by another thread. 3) Does not exist. The program will skip opening the image file." + Environment.NewLine + " The following information is just to help Zack debug this. You can close the dialog box without a problem." + Environment.NewLine + Environment.NewLine + "Source:   " + e.Source + Environment.NewLine + "Message:   " + e.Message + Environment.NewLine + "Stack Trace:   " + e.StackTrace);
+
+                //the file is unavailable because it is:
+                //still being written to
+                //or being processed by another thread
+                //or does not exist (has already been processed)
+                return true;
+            }
+
+            //file is not locked
+            return false;
         }
 
         void PlanList_SelectedIndexChanged(object sender, EventArgs e)
@@ -256,7 +311,7 @@ namespace CollisionCheck
             bodyloc = imagelocationlist.SelectedItem.ToString();
 
             ProgOutput.AppendText(Environment.NewLine);
-            ProgOutput.AppendText("Image location " + bodyloc);
+            ProgOutput.AppendText("CT Scan area " + bodyloc);
         }
 
         private void Executebutton_Click(object sender, EventArgs args)
