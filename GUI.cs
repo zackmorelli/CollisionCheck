@@ -17,7 +17,7 @@ using VMS.TPS;
 
 /*
     Collision Check - GUI
-    Copyright (c) 2019 Radiation Oncology Department, Lahey Hospital and Medical Center
+    Copyright (c) 2020 Radiation Oncology Department, Lahey Hospital and Medical Center
     Written by Zack Morelli
 
     This program is expressely written as a plug-in script for use with Varian's Eclipse Treatment Planning System, and requires Varian's API files to run properly.
@@ -66,10 +66,7 @@ namespace CollisionCheck
             }
 
             Heightbox.Text = height;
-
-
             Executebutton.Click += (sender, EventArgs) => { LAMBDALINK(sender, EventArgs, Plans, image); };
-
         }
 
         
@@ -80,7 +77,7 @@ namespace CollisionCheck
             // need to make plan/plansum pick more robust using PL
             // MessageBox.Show("Trig EXE - 1");
 
-                    //  MessageBox.Show("pl is: " + pl);
+            //  MessageBox.Show("pl is: " + pl);
             // plans
 
             IEnumerator ER = Plans.GetEnumerator();
@@ -92,6 +89,18 @@ namespace CollisionCheck
 
             //  MessageBox.Show("number of plans: " + CNT);
 
+            if(pl == null)
+            {
+                MessageBox.Show("You must select a plan for the program to run on before starting! The list of plans in the course currently loaded into Eclipse is in the upper left.");
+                return;
+            }
+
+            if(bodyloc == null)
+            {
+                MessageBox.Show("You must select one of the body areas that represents the treatment planning CT associated with this plan!");
+                return;
+            }
+            
             if (Plan.Id == pl)
             {
                 //  MessageBox.Show("Trig EXE - 2");
@@ -204,16 +213,29 @@ namespace CollisionCheck
             MessageBox.Show("Collision analysis completed");
             if (output.Count == 0)
             {
-                MessageBox.Show("No Collisions detected!");
+                ProgOutput.AppendText(Environment.NewLine);
+                ProgOutput.AppendText("Collision display rendering complete.");
+                ProgOutput.AppendText(Environment.NewLine);
+                ProgOutput.AppendText("The program is now done running.");
+                ProgOutput.AppendText(Environment.NewLine);
+                ProgOutput.AppendText("This window will persist until closed.");
+                ProgOutput.AppendText(Environment.NewLine);
+                ProgOutput.AppendText("You can close the window or run the program again.");
+                MessageBox.Show("No Collisions detected! Program done.");
             }
             else
             {
+                ProgOutput.AppendText(Environment.NewLine);
+                ProgOutput.AppendText("Collision analysis complete. Collisions detected!");
+                ProgOutput.AppendText(Environment.NewLine);
+                ProgOutput.AppendText("Rendering Collision images...");
                 MessageBox.Show("Collisions detected!");
             }
 
             if (output.Count > 0)
             {
-               // Patient Point: (" + Math.Round(alert.Patpoint.x, 1, MidpointRounding.AwayFromZero) + ", " + Math.Round(alert.Gantrypoint.y, 1, MidpointRounding.AwayFromZero) + ", " + Math.Round(alert.Gantrypoint.z, 1, MidpointRounding.AwayFromZero) + ")
+                // Patient Point: (" + Math.Round(alert.Patpoint.x, 1, MidpointRounding.AwayFromZero) + ", " + Math.Round(alert.Gantrypoint.y, 1, MidpointRounding.AwayFromZero) + ", " + Math.Round(alert.Gantrypoint.z, 1, MidpointRounding.AwayFromZero) + ")
+                // last contig should be false by default in the collision alert class
                 foreach (Script.CollisionAlert alert in output)
                 {
                     if(alert.contiguous == true)
@@ -221,19 +243,29 @@ namespace CollisionCheck
                         continue;
                     }
 
-                    if (alert.lastcontig == false)
+                    if (alert.endoflist == true)
                     {
                         CollOutput.AppendText(Environment.NewLine);
                         CollOutput.AppendText(Environment.NewLine);
-                        CollOutput.AppendText("Beam " + alert.beam + ": START of gantry collision area with " + alert.type + "." + Environment.NewLine + "Couch Angle: " + alert.couchangle + "  Gantry Angle: " + alert.gantryangle + "  Distance: " + alert.distance + " mm");
+                        CollOutput.AppendText("END OF BEAM " + alert.beam + ". Still colliding with " + alert.type + "." + Environment.NewLine + "Couch Angle: " + alert.couchangle + "  Gantry Angle: " + alert.gantryangle + "  Distance: " + alert.distance + " mm");
                         CollOutput.AppendText(Environment.NewLine);
                     }
-                    else if (alert.lastcontig == true)
+                    else
                     {
-                        CollOutput.AppendText(Environment.NewLine);
-                        CollOutput.AppendText(Environment.NewLine);
-                        CollOutput.AppendText("Beam " + alert.beam + ": END of gantry collision area with " + alert.type + "." + Environment.NewLine + "Couch Angle: " + alert.couchangle + "  Gantry Angle: " + alert.gantryangle + "  Distance: " + alert.distance + " mm");
-                        CollOutput.AppendText(Environment.NewLine);
+                        if (alert.lastcontig == false)
+                        {
+                            CollOutput.AppendText(Environment.NewLine);
+                            CollOutput.AppendText(Environment.NewLine);
+                            CollOutput.AppendText("Beam " + alert.beam + ": START of gantry collision area with " + alert.type + "." + Environment.NewLine + "Couch Angle: " + alert.couchangle + "  Gantry Angle: " + alert.gantryangle + "  Distance: " + alert.distance + " mm");
+                            CollOutput.AppendText(Environment.NewLine);
+                        }
+                        else if (alert.lastcontig == true)
+                        {
+                            CollOutput.AppendText(Environment.NewLine);
+                            CollOutput.AppendText(Environment.NewLine);
+                            CollOutput.AppendText("Beam " + alert.beam + ": END of gantry collision area with " + alert.type + "." + Environment.NewLine + "Couch Angle: " + alert.couchangle + "  Gantry Angle: " + alert.gantryangle + "  Distance: " + alert.distance + " mm");
+                            CollOutput.AppendText(Environment.NewLine);
+                        }
                     }
                 }
 
@@ -262,6 +294,7 @@ namespace CollisionCheck
                     if (ftest == false)
                     {
                         _3DRender.MainWindow window = new _3DRender.MainWindow(@"\\ntfs16\Therapyphysics\Treatment Planning Systems\Eclipse\Scripting common files\Collision_Check_STL_files\" + Plan.Course.Patient.Id + "_" + Plan.Course.Id + "_" + Plan.Id + "_" + "Beam_" + al.beam + ".stl");
+                       // ProgBar.Style = ProgressBarStyle.Marquee;
                         window.Show();
                     }
                     wincnt++;
@@ -270,6 +303,13 @@ namespace CollisionCheck
 
                 this.WindowState = FormWindowState.Normal;
                 this.Activate();
+
+                ProgOutput.AppendText(Environment.NewLine);
+                ProgOutput.AppendText("The program is now done running.");
+                ProgOutput.AppendText(Environment.NewLine);
+                ProgOutput.AppendText("This window will persist until closed.");
+                ProgOutput.AppendText(Environment.NewLine);
+                ProgOutput.AppendText("You can close the window or run the program again."); 
             }
         }
 
@@ -332,6 +372,5 @@ namespace CollisionCheck
             ProgOutput.AppendText(Environment.NewLine);
             ProgOutput.AppendText("Height Changed to " + height + " cm.");
         }
-
     }
 }
