@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 // associated with an assembly.
 [assembly: AssemblyTitle("CollisionCheck")]
 [assembly: AssemblyDescription("Written by Zackary T Morelli")]
-[assembly: AssemblyConfiguration("Release - 1.1, July 24, 2020")]
+[assembly: AssemblyConfiguration("Release - 2.0, August 8, 2020")]
 [assembly: AssemblyCompany("Radiation Oncology Department, Lahey Hospital and Medical Center")]
 [assembly: AssemblyProduct("CollisionCheck")]
 [assembly: AssemblyCopyright("Copyright ©  2020")]
@@ -32,5 +32,5 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("1.1.0.0")]
-[assembly: AssemblyFileVersion("1.1.0.0")]
+[assembly: AssemblyVersion("2.0.0.0")]
+[assembly: AssemblyFileVersion("2.0.0.0")]

@@ -65,6 +65,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CollisionCheck.cs" />
+    <Compile Include="ScriptExecute.cs" />
     <Compile Include="GUI.cs">
       <SubType>Form</SubType>
     </Compile>

@@ -10,9 +10,10 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using VMS.TPS.Common.Model.API;
-using VMS.TPS.Common.Model.Types;
-using VMS.TPS;
+using System.Windows.Threading;
+
+
+
 
 
 /*
@@ -41,48 +42,33 @@ namespace CollisionCheck
         public double Xshiftvalue = 0.0;
         public double Yshiftvalue = 0.0;
 
-        public GUI(IEnumerable<PlanSetup> Plans, Patient patient, VMS.TPS.Common.Model.API.Image image)
+        public GUI(List<PLAN> Plans, IMAGE image)
         {
             InitializeComponent();
 
-            foreach (PlanSetup aplan in Plans)
+            foreach (PLAN aplan in Plans)
             {
-                Planlist.Items.Add(aplan.Id);
-                plannames.Add(aplan.Id);
+                Planlist.Items.Add(aplan.planId);
+                plannames.Add(aplan.planId);
                 // MessageBox.Show("Trig 8");
             }
 
-            if (patient.Sex == "Female")
-            {
-                height = "161.5";
-            }
-            else if (patient.Sex == "Male")
-            {
-                height = "175.4";
-            }
-            else
-            {
-                height = "167.5";
-            }
-
-            Heightbox.Text = height;
             Executebutton.Click += (sender, EventArgs) => { LAMBDALINK(sender, EventArgs, Plans, image); };
         }
 
         
-        private void EXECUTE(IEnumerable<PlanSetup> Plans, VMS.TPS.Common.Model.API.Image image)
+        private void EXECUTE(List<PLAN> Plans, IMAGE image)
         {
             ProgOutput.Clear();
             CollOutput.Clear();
+
             // need to make plan/plansum pick more robust using PL
-            // MessageBox.Show("Trig EXE - 1");
+            ProgOutput.AppendText(Environment.NewLine);
+            ProgOutput.AppendText("Program starting...");
 
             //  MessageBox.Show("pl is: " + pl);
             // plans
 
-            IEnumerator ER = Plans.GetEnumerator();
-            ER.MoveNext();
-            PlanSetup Plan = (PlanSetup)ER.Current;
             // MessageBox.Show("K is: " + k1.ToString());
 
             int CNT = Plans.Count();
@@ -100,127 +86,219 @@ namespace CollisionCheck
                 MessageBox.Show("You must select one of the body areas that represents the treatment planning CT associated with this plan!");
                 return;
             }
+
+            List<PLAN> templistPlan = Plans.Where(a => a.planId.Equals(pl)).ToList();
+            PLAN Plan = templistPlan.First();
             
-            if (Plan.Id == pl)
+            if (Plan.patientsex == "Female")
             {
-                //  MessageBox.Show("Trig EXE - 2");
-                Plan = (PlanSetup)ER.Current;
-                // MessageBox.Show("Plan Id is: " + Plan.Id);
+                height = "161.5";
+            }
+            else if (Plan.patientsex == "Male")
+            {
+                height = "175.4";
             }
             else
             {
-                ER.MoveNext();
-                Plan = (PlanSetup)ER.Current;
-                if (Plan.Id == pl)
-                {
-                    // MessageBox.Show("Plan Id is: " + Plan.Id);
-                    Plan = (PlanSetup)ER.Current;
-                }
-                else
-                {
-                    ER.MoveNext();
-                    Plan = (PlanSetup)ER.Current;
-                    if (Plan.Id == pl)
-                    {
-                        Plan = (PlanSetup)ER.Current;
-                    }
-                    else 
-                    {
-                        ER.MoveNext();
-                        Plan = (PlanSetup)ER.Current;
-                        if (Plan.Id == pl)
-                        {
-                            Plan = (PlanSetup)ER.Current;
-                        }
-                        else
-                        {
-                            ER.MoveNext();
-                            Plan = (PlanSetup)ER.Current;
-                            if (Plan.Id == pl)
-                            {
-                                Plan = (PlanSetup)ER.Current;
-                            }
-                            else
-                            {
-                                ER.MoveNext();
-                                Plan = (PlanSetup)ER.Current;
-                                if (Plan.Id == pl)
-                                {
-                                    Plan = (PlanSetup)ER.Current;
-                                }
-                                else
-                                {
-                                    ER.MoveNext();
-                                    Plan = (PlanSetup)ER.Current;
-                                    if (Plan.Id == pl)
-                                    {
-                                        Plan = (PlanSetup)ER.Current;
-                                    }
-                                    else
-                                    {
-                                        ER.MoveNext();
-                                        Plan = (PlanSetup)ER.Current;
-                                        if (Plan.Id == pl)
-                                        {
-                                            Plan = (PlanSetup)ER.Current;
-                                        }
-                                        else
-                                        {
-                                            ER.MoveNext();
-                                            Plan = (PlanSetup)ER.Current;
-                                            if (Plan.Id == pl)
-                                            {
-                                                Plan = (PlanSetup)ER.Current;
-                                            }
-                                            else
-                                            {
-                                                ER.MoveNext();
-                                                Plan = (PlanSetup)ER.Current;
-                                                if (Plan.Id == pl)
-                                                {
-                                                    Plan = (PlanSetup)ER.Current;
-                                                }
-                                                else
-                                                {
-                                                    ER.MoveNext();
-                                                    Plan = (PlanSetup)ER.Current;
-                                                    if (Plan.Id == pl)
-                                                    {
-                                                        Plan = (PlanSetup)ER.Current;
-                                                    }
-                                                    else
-                                                    {
-                                                        MessageBox.Show("Could not find the selected plan!");
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                height = "167.5";
             }
 
-            double ht = Convert.ToDouble(height);
-           
-            ProgOutput.AppendText(Environment.NewLine);
-            ProgOutput.AppendText("Program starting...");
+            Heightbox.Text = height;
+            List<BEAM> BEAMLIST = new List<BEAM>();
 
-            List<Script.CollisionAlert> output = Script.CollisionCheck(Plan, bodyloc, ht, ProgOutput, image, ProgBar);
+            try
+            {
+                double ht = Convert.ToDouble(height);
 
-            MessageBox.Show("Collision analysis completed");
+                //List<BEAM> BEAMLIST = new List<BEAM>();
+
+                foreach (BEAM be in Plan.Beams)
+                {
+                    if (Plan.couchexists == false & Plan.breastboardexists == false)
+                    {
+                        BEAMLIST.Add(new BEAM
+                        {
+                            gantrydirection = be.gantrydirection,
+                            setupfield = be.setupfield,
+                            Isocenter = be.Isocenter,
+                            MLCtype = be.MLCtype,
+                            beamId = be.beamId,
+                            arclength = be.arclength,
+                            ControlPoints = be.ControlPoints,
+                            imageuserorigin = image.imageuserorigin,
+                            imageorigin = image.imageorigin,
+                            planId = Plan.planId,
+                            patientId = Plan.patientId,
+                            courseId = Plan.courseId,
+                            patientsex = Plan.patientsex,
+                            StructureSetId = Plan.StructureSetId,
+                            TreatmentOrientation = Plan.TreatmentOrientation,
+                            Bodycenter = Plan.Bodycenter,
+                            CouchInteriorcenter = Plan.CouchInteriorcenter,
+                            BreastBoardcenter = Plan.BreastBoardcenter,
+                            couchexists = Plan.couchexists,
+                            breastboardexists = Plan.breastboardexists,
+                            bodylocation = bodyloc,
+                            patientheight = ht,
+
+                            //CUSTOM MADE MESH INFO
+
+                            BodyBoxXsize = Plan.BodyBoxXsize,
+                            BodyBoxYSize = Plan.BodyBoxYSize,
+                            BodyBoxZSize = Plan.BodyBoxZSize,
+                            Bodyvects = Plan.Bodyvects,
+                            Bodyindices = Plan.Bodyindices
+                        });
+                    }
+                    else if(Plan.couchexists == true & Plan.breastboardexists == false)
+                    {
+                        BEAMLIST.Add(new BEAM
+                        {
+                            gantrydirection = be.gantrydirection,
+                            setupfield = be.setupfield,
+                            Isocenter = be.Isocenter,
+                            MLCtype = be.MLCtype,
+                            beamId = be.beamId,
+                            arclength = be.arclength,
+                            ControlPoints = be.ControlPoints,
+                            imageuserorigin = image.imageuserorigin,
+                            imageorigin = image.imageorigin,
+                            planId = Plan.planId,
+                            patientId = Plan.patientId,
+                            courseId = Plan.courseId,
+                            patientsex = Plan.patientsex,
+                            StructureSetId = Plan.StructureSetId,
+                            TreatmentOrientation = Plan.TreatmentOrientation,
+                            Bodycenter = Plan.Bodycenter,
+                            CouchInteriorcenter = Plan.CouchInteriorcenter,
+                            BreastBoardcenter = Plan.BreastBoardcenter,
+                            couchexists = Plan.couchexists,
+                            breastboardexists = Plan.breastboardexists,
+                            bodylocation = bodyloc,
+                            patientheight = ht,
+
+                            //CUSTOM MADE MESH INFO
+
+                            BodyBoxXsize = Plan.BodyBoxXsize,
+                            BodyBoxYSize = Plan.BodyBoxYSize,
+                            BodyBoxZSize = Plan.BodyBoxZSize,
+                            Bodyvects = Plan.Bodyvects,
+                            Bodyindices = Plan.Bodyindices,
+                            CouchInteriorvects = Plan.CouchInteriorvects,
+                            CouchInteriorindices = Plan.CouchInteriorindices
+                        });
+                    }
+                    else if(Plan.couchexists == false & Plan.breastboardexists == true)
+                    {
+                        BEAMLIST.Add(new BEAM
+                        {
+                            gantrydirection = be.gantrydirection,
+                            setupfield = be.setupfield,
+                            Isocenter = be.Isocenter,
+                            MLCtype = be.MLCtype,
+                            beamId = be.beamId,
+                            arclength = be.arclength,
+                            ControlPoints = be.ControlPoints,
+                            imageuserorigin = image.imageuserorigin,
+                            imageorigin = image.imageorigin,
+                            planId = Plan.planId,
+                            patientId = Plan.patientId,
+                            courseId = Plan.courseId,
+                            patientsex = Plan.patientsex,
+                            StructureSetId = Plan.StructureSetId,
+                            TreatmentOrientation = Plan.TreatmentOrientation,
+                            Bodycenter = Plan.Bodycenter,
+                            CouchInteriorcenter = Plan.CouchInteriorcenter,
+                            BreastBoardcenter = Plan.BreastBoardcenter,
+                            couchexists = Plan.couchexists,
+                            breastboardexists = Plan.breastboardexists,
+                            bodylocation = bodyloc,
+                            patientheight = ht,
+
+                            //CUSTOM MADE MESH INFO
+
+                            BodyBoxXsize = Plan.BodyBoxXsize,
+                            BodyBoxYSize = Plan.BodyBoxYSize,
+                            BodyBoxZSize = Plan.BodyBoxZSize,
+                            Bodyvects = Plan.Bodyvects,
+                            Bodyindices = Plan.Bodyindices,
+                            BreastBoardvects = Plan.BreastBoardvects,
+                            BreastBoardindices = Plan.BreastBoardindices
+                        });
+                    }
+                    else if(Plan.couchexists == true & Plan.breastboardexists == true)
+                    {
+                        BEAMLIST.Add(new BEAM
+                        {
+                            gantrydirection = be.gantrydirection,
+                            setupfield = be.setupfield,
+                            Isocenter = be.Isocenter,
+                            MLCtype = be.MLCtype,
+                            beamId = be.beamId,
+                            arclength = be.arclength,
+                            ControlPoints = be.ControlPoints,
+                            imageuserorigin = image.imageuserorigin,
+                            imageorigin = image.imageorigin,
+                            planId = Plan.planId,
+                            patientId = Plan.patientId,
+                            courseId = Plan.courseId,
+                            patientsex = Plan.patientsex,
+                            StructureSetId = Plan.StructureSetId,
+                            TreatmentOrientation = Plan.TreatmentOrientation,
+                            Bodycenter = Plan.Bodycenter,
+                            CouchInteriorcenter = Plan.CouchInteriorcenter,
+                            BreastBoardcenter = Plan.BreastBoardcenter,
+                            couchexists = Plan.couchexists,
+                            breastboardexists = Plan.breastboardexists,
+                            bodylocation = bodyloc,
+                            patientheight = ht,
+
+                            //CUSTOM MADE MESH INFO
+
+                            BodyBoxXsize = Plan.BodyBoxXsize,
+                            BodyBoxYSize = Plan.BodyBoxYSize,
+                            BodyBoxZSize = Plan.BodyBoxZSize,
+                            Bodyvects = Plan.Bodyvects,
+                            Bodyindices = Plan.Bodyindices,
+                            BreastBoardvects = Plan.BreastBoardvects,
+                            BreastBoardindices = Plan.BreastBoardindices,
+                            CouchInteriorvects = Plan.CouchInteriorvects,
+                            CouchInteriorindices = Plan.CouchInteriorindices
+                        });
+                    }
+                }
+
+                BEAMLIST.RemoveAll(el => el.setupfield == true);
+
+                ProgOutput.AppendText(Environment.NewLine);
+                ProgOutput.AppendText("Initiating CollisionCheck...");
+            }
+            catch(Exception e)
+            {
+                MessageBox.Show(e.ToString());
+            }
+
+            List<CollisionAlert> output = CollisionCheckMethods.CollisionCheckExecute(BEAMLIST, ProgOutput);
+
+            //List<CollisionAlert> output = outputTask.Result;
+
+            ProgBar.Visible = false;
+
             if (output.Count == 0)
             {
                 ProgOutput.AppendText(Environment.NewLine);
-                ProgOutput.AppendText("Collision display rendering complete.");
+                ProgOutput.AppendText("Collision analysis complete. No collisions detected.");
                 ProgOutput.AppendText(Environment.NewLine);
                 ProgOutput.AppendText("The program is now done running.");
                 ProgOutput.AppendText(Environment.NewLine);
                 ProgOutput.AppendText("This window will persist until closed.");
                 ProgOutput.AppendText(Environment.NewLine);
                 ProgOutput.AppendText("You can close the window or run the program again.");
+
+                CollOutput.AppendText(Environment.NewLine);
+                CollOutput.AppendText("No Collisions found.");
+                CollOutput.AppendText(Environment.NewLine);
+
                 MessageBox.Show("No Collisions detected! Program done.");
             }
             else
@@ -236,7 +314,7 @@ namespace CollisionCheck
             {
                 // Patient Point: (" + Math.Round(alert.Patpoint.x, 1, MidpointRounding.AwayFromZero) + ", " + Math.Round(alert.Gantrypoint.y, 1, MidpointRounding.AwayFromZero) + ", " + Math.Round(alert.Gantrypoint.z, 1, MidpointRounding.AwayFromZero) + ")
                 // last contig should be false by default in the collision alert class
-                foreach (Script.CollisionAlert alert in output)
+                foreach (CollisionAlert alert in output)
                 {
                     if(alert.contiguous == true)
                     {
@@ -247,7 +325,7 @@ namespace CollisionCheck
                     {
                         CollOutput.AppendText(Environment.NewLine);
                         CollOutput.AppendText(Environment.NewLine);
-                        CollOutput.AppendText("END OF BEAM " + alert.beam + ". Still colliding with " + alert.type + "." + Environment.NewLine + "Couch Angle: " + alert.couchangle + "  Gantry Angle: " + alert.gantryangle + "  Distance: " + alert.distance + " mm");
+                        CollOutput.AppendText("END OF BEAM " + alert.beam + ". Still colliding with " + alert.type + "." + Environment.NewLine + "Couch Angle: " + alert.couchangle + "  Gantry Angle: " + alert.gantryangle + "  Rotation Direction: " + alert.rotationdirection + "  Distance: " + alert.distance + " mm");
                         CollOutput.AppendText(Environment.NewLine);
                     }
                     else
@@ -256,27 +334,27 @@ namespace CollisionCheck
                         {
                             CollOutput.AppendText(Environment.NewLine);
                             CollOutput.AppendText(Environment.NewLine);
-                            CollOutput.AppendText("Beam " + alert.beam + ": START of gantry collision area with " + alert.type + "." + Environment.NewLine + "Couch Angle: " + alert.couchangle + "  Gantry Angle: " + alert.gantryangle + "  Distance: " + alert.distance + " mm");
+                            CollOutput.AppendText("Beam " + alert.beam + ": START of gantry collision area with " + alert.type + "." + Environment.NewLine + "Couch Angle: " + alert.couchangle + "  Gantry Angle: " + alert.gantryangle + "  Rotation Direction: " + alert.rotationdirection + "  Distance: " + alert.distance + " mm");
                             CollOutput.AppendText(Environment.NewLine);
                         }
                         else if (alert.lastcontig == true)
                         {
                             CollOutput.AppendText(Environment.NewLine);
                             CollOutput.AppendText(Environment.NewLine);
-                            CollOutput.AppendText("Beam " + alert.beam + ": END of gantry collision area with " + alert.type + "." + Environment.NewLine + "Couch Angle: " + alert.couchangle + "  Gantry Angle: " + alert.gantryangle + "  Distance: " + alert.distance + " mm");
+                            CollOutput.AppendText("Beam " + alert.beam + ": END of gantry collision area with " + alert.type + "." + Environment.NewLine + "Couch Angle: " + alert.couchangle + "  Gantry Angle: " + alert.gantryangle + "  Rotation Direction: " + alert.rotationdirection + "  Distance: " + alert.distance + " mm");
                             CollOutput.AppendText(Environment.NewLine);
                         }
                     }
                 }
 
                 Thread.Sleep(1000); //wait 1 seconds
-                MessageBox.Show("A separate window depicting an image of the 3D collision model will now open for each beam where a collision was detected. You can click and drag your mouse (slowly) to rotate the image and use the mouse wheel to zoom in and out.");
+                MessageBox.Show("A separate window depicting an image of the 3D collision model will now open for each beam where a collision was detected (takes about ten seconds). You can click and drag your mouse (slowly) to rotate the image and use the mouse wheel to zoom in and out.");
           
                 List<string> beam_distinct_enforcer = new List<string>();
 
                 int wincnt = 0;
 
-                foreach(Script.CollisionAlert al in output)
+                foreach(CollisionAlert al in output)
                 {
                     if (wincnt > 0)
                     {
@@ -289,20 +367,34 @@ namespace CollisionCheck
 
                     beam_distinct_enforcer.Add(al.beam);
                         
-                    FileInfo file = new FileInfo(@"\\ntfs16\Therapyphysics\Treatment Planning Systems\Eclipse\Scripting common files\Collision_Check_STL_files\" + Plan.Course.Patient.Id + "_" + Plan.Course.Id + "_" + Plan.Id + "_" + "Beam_" + al.beam + ".stl");
+                    FileInfo file = new FileInfo(@"\\ntfs16\Therapyphysics\Treatment Planning Systems\Eclipse\Scripting common files\Collision_Check_STL_files\" + Plan.patientId + "_" + Plan.courseId + "_" + Plan.planId + "_" + "Beam_" + al.beam + ".stl");
                     bool ftest = IsFileLocked(file, al);
                     if (ftest == false)
                     {
-                        _3DRender.MainWindow window = new _3DRender.MainWindow(@"\\ntfs16\Therapyphysics\Treatment Planning Systems\Eclipse\Scripting common files\Collision_Check_STL_files\" + Plan.Course.Patient.Id + "_" + Plan.Course.Id + "_" + Plan.Id + "_" + "Beam_" + al.beam + ".stl");
-                       // ProgBar.Style = ProgressBarStyle.Marquee;
-                        window.Show();
+
+                        string window_init = @"\\ntfs16\Therapyphysics\Treatment Planning Systems\Eclipse\Scripting common files\Collision_Check_STL_files\" + Plan.patientId + "_" + Plan.courseId + "_" + Plan.planId + "_" + "Beam_" + al.beam + ".stl";
+
+                        Thread WPFWindowInit = new Thread(() =>
+                        {
+                            _3DRender.MainWindow window = new _3DRender.MainWindow(window_init);
+                            window.Closed += (s, e) =>
+                                Dispatcher.CurrentDispatcher.BeginInvokeShutdown(DispatcherPriority.Normal);
+                            window.Show();
+                            Dispatcher.Run();
+                        });
+
+                        WPFWindowInit.SetApartmentState(ApartmentState.STA);
+                        WPFWindowInit.Start();
+
                     }
                     wincnt++;
                 }
-                MessageBox.Show("All images have been displayed in their own window (Except if that pesky IO error happened). You can close each window, as well as the GUI, when you are done. The GUI window should now reappear in front of you");
+                //MessageBox.Show("All images have been displayed in their own window. You can close each window, as well as the GUI, when you are done. The GUI window should now reappear in front of you");
 
-                this.WindowState = FormWindowState.Normal;
-                this.Activate();
+                //this.WindowState = FormWindowState.Normal;
+                //this.Activate();
+
+                Thread.Sleep(12000);
 
                 ProgOutput.AppendText(Environment.NewLine);
                 ProgOutput.AppendText("The program is now done running.");
@@ -313,7 +405,7 @@ namespace CollisionCheck
             }
         }
 
-        protected static bool IsFileLocked(FileInfo file, Script.CollisionAlert al)
+        protected static bool IsFileLocked(FileInfo file, CollisionAlert al)
         {
             try
             {
@@ -358,11 +450,22 @@ namespace CollisionCheck
         {
             //  MessageBox.Show("Organ: " + org.ToString());
             //  MessageBox.Show("Trig 12 - First Click");
+
+            ProgBar.Style = ProgressBarStyle.Marquee;
+            ProgBar.Visible = true;
+            ProgBar.MarqueeAnimationSpeed = 100;
         }
 
-        void LAMBDALINK(object sender, EventArgs e, IEnumerable<PlanSetup> Plans, VMS.TPS.Common.Model.API.Image image)
+        void LAMBDALINK(object sender, EventArgs e, List<PLAN> Plans, IMAGE image)
         {
-            EXECUTE(Plans, image);
+            try
+            {
+                Task.Run(() => EXECUTE(Plans, image));
+            }
+            catch(Exception ae)
+            {
+                MessageBox.Show(ae.ToString());
+            }
         }
 
         void Heightbox_TextChanged(object sender, EventArgs e)
