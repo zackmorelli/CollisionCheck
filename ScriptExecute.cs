@@ -25,18 +25,17 @@ using CollisionCheck;
 
 /*
     Collision Check - Main program
-    Copyright (c) 2020 Radiation Oncology Department, Lahey Hospital and Medical Center
-    Written by Zackary T. Morelli
-    Release 2.0 August 8, 2020
+    Copyright (c) Zackary Thomas Ricci Morelli
+    Release 3.1 July 8, 2021
 
-    This program is multi-threaded using the Task Parallel Library (TPL) found in .NET Framework 4.5. It also uses traditional threading from earlier versions of .NET.
+    This program is multi-threaded using the Task Parallel Library (TPL) found in .NET Framework. It also uses traditional threading from earlier versions of .NET.
     Thread safety is achieved mostly through the use of custom classes to completley extract ESAPI (which cannot be used in a multi-threaded environment).
     The Main thread starts here when the Execute method the ESAPI Script class is called. The GUI is then called on it's own Task, and the execute method (button) of the of GUI is called on it's own Task as well.
     This ensures that the GUI is always responsive. The Execute method from the GUI then conducts the Collision analysis for each beam in parallel (at the same time), and does any ARIA database querying on a separate thread.
     This ensures the program runs smoothly.
 
     This program is expressely written as a plug-in script for use with Varian's Eclipse Treatment Planning System, and requires Varian's API files to run properly.
-    This program also requires .NET Framework 4.5.0 to run properly.
+    This program also requires .NET Framework 4.6.1 to run properly.
     This program also uses the Gradientspace package (g3) to generate and manipulate 3D mesh structures, and write them as STL files.
     This program also uses the HelixToolkit package to render the STL files of each beam if a collision happens. This is not located here, but is in another class/file called 3DRender. 3DRender is used by the GUI class.
 
@@ -127,26 +126,11 @@ namespace VMS.TPS
 
                     Structure Body = (Structure)BR.Current;
 
-                    //IEnumerator CSR = plan.StructureSet.Structures.GetEnumerator();
-                    //CSR.MoveNext();
-                    //CSR.MoveNext();
-                    //CSR.MoveNext();
+                    //Structure CouchSurface = (Structure)BR.Current;
 
-                    //Structure CouchSurface = (Structure)CSR.Current;
+                    Structure CouchInterior = (Structure)BR.Current;
 
-                    IEnumerator CIR = plan.StructureSet.Structures.GetEnumerator();
-                    CIR.MoveNext();
-                    CIR.MoveNext();
-                    CIR.MoveNext();
-
-                    Structure CouchInterior = (Structure)CIR.Current;
-
-                    IEnumerator CPR = plan.StructureSet.Structures.GetEnumerator();
-                    CPR.MoveNext();
-                    CPR.MoveNext();
-                    CPR.MoveNext();
-
-                    Structure Prone_Brst_Board = (Structure)CPR.Current;
+                    Structure Prone_Brst_Board = (Structure)BR.Current;
 
                     Vector3d bodycenter = new Vector3d();
                     Vector3d couchinteriorcenter = new Vector3d();
@@ -221,19 +205,20 @@ namespace VMS.TPS
                     List<BEAM> Beams = new List<BEAM>();
                     foreach (Beam beam in plan.Beams)
                     {
-                        string mlctype = null;
+                        bool mlctype = false;
 
-                        if (beam.MLCPlanType == MLCPlanType.Static)
+                        if (beam.MLCPlanType == MLCPlanType.Static || beam.MLCPlanType == MLCPlanType.NotDefined)
                         {
-                            mlctype = "Static";
+                            mlctype = false;
                         }
                         else
                         {
-                            mlctype = "Not Static";
+                            mlctype = true;
                         }
 
                         Vector3d iso = new Vector3d(beam.IsocenterPosition.x, beam.IsocenterPosition.y, beam.IsocenterPosition.z);
-
+                        VVector st = new VVector();
+                        Vector3d apiSource = new Vector3d();    // only for use with non-isocentric beams
                         string gantrydir = null;
 
                         if (beam.GantryDirection == GantryDirection.Clockwise)
@@ -247,46 +232,56 @@ namespace VMS.TPS
                         else if (beam.GantryDirection == GantryDirection.None)
                         {
                             gantrydir = "None";
+                            // meaning not an arc
+                            st = beam.GetSourceLocation(beam.ControlPoints.First().GantryAngle);
+                            //System.Windows.Forms.MessageBox.Show("st : (" + st.x + ", " + st.y + ", " + st.z + ")");
                         }
 
                         string beamId = beam.Id;
                         bool setupfield = beam.IsSetupField;
                         double arclength = beam.ArcLength;
+                        //System.Windows.Forms.MessageBox.Show("Beam: " + beam.Id);
+                        //System.Windows.Forms.MessageBox.Show("MLC Type: " + beam.MLCPlanType.ToString());
+                        //System.Windows.Forms.MessageBox.Show("Arc Length: " + arclength);
+                        //System.Windows.Forms.MessageBox.Show("Control points: " + beam.ControlPoints.Count);
+                        apiSource = new Vector3d(st.x, st.y, st.z);
 
                         List<CONTROLPOINT> controlpoints = new List<CONTROLPOINT>();
                         foreach (ControlPoint cp in beam.ControlPoints)
                         {
+                            //System.Windows.Forms.MessageBox.Show("Gantryangle: " + cp.GantryAngle);
                             controlpoints.Add(new CONTROLPOINT { Couchangle = cp.PatientSupportAngle, Gantryangle = cp.GantryAngle });
                         }
-
-
-                        Beams.Add(new BEAM { MLCtype = mlctype, Isocenter = iso, gantrydirection = gantrydir, beamId = beamId, ControlPoints = controlpoints, setupfield = setupfield, arclength = arclength });
+                        //System.Windows.Forms.MessageBox.Show("controlpoints size: " + controlpoints.Count);
+                        //System.Windows.Forms.MessageBox.Show("APISource : (" + apiSource.x + ", " + apiSource.y + ", " + apiSource.z + ")");
+                        Beams.Add(new BEAM { MLCtype = mlctype, Isocenter = iso, APISource = apiSource, gantrydirection = gantrydir, beamId = beamId, ControlPoints = controlpoints, setupfield = setupfield, arclength = arclength });
                     }
-
-
                     PLANS.Add(new PLAN { planId = plan.Id, StructureSetId = plan.StructureSet.Id, TreatmentOrientation = PATIENTORIENTATION, Body = Body.MeshGeometry, CouchInterior = CouchInterior.MeshGeometry, ProneBreastBoard = Prone_Brst_Board.MeshGeometry, breastboardexists = breastboardexists, couchexists = couchexist, Beams = Beams, patientId = patientId, patientsex = patientsex, courseId = courseId, Bodycenter = bodycenter, BreastBoardcenter = breastboardcenter, CouchInteriorcenter = couchinteriorcenter, Bodyvects = new List<Vector3d>(), Bodyindices = new List<int>(), CouchInteriorvects = new List<Vector3d>(), CouchInteriorindices = new List<int>(), BreastBoardvects = new List<Vector3d>(), BreastBoardindices = new List<int>(), BodyBoxXsize = 1000000.0, BodyBoxYSize = 1000000.0 , BodyBoxZSize = 1000000.0});
                 }
 
                 foreach(PLAN Plan in PLANS)
                 {
-                   // System.Windows.Forms.MessageBox.Show(Plan.planId + "START body vector conversion");
+                    // System.Windows.Forms.MessageBox.Show(Plan.planId + "START body vector conversion");
                     //System.Windows.Forms.MessageBox.Show("Body positions size: " + Plan.Body.Positions.Count);
 
-                        foreach (Point3D p in Plan.Body.Positions)
-                        {
-                            double XP = p.X;
-                            double YP = p.Y;
-                            double ZP = p.Z;
-                            Vector3d Vect = new Vector3d(XP, YP, ZP);
+                    double XP;
+                    double YP;
+                    double ZP;
+                    Vector3d Vect;
 
-                            Plan.Bodyvects.Add(Vect);
-                        }
+                    foreach (Point3D p in Plan.Body.Positions)
+                    {
+                        XP = p.X;
+                        YP = p.Y;
+                        ZP = p.Z;
+                        Vect = new Vector3d(XP, YP, ZP);
+                        Plan.Bodyvects.Add(Vect);
+                    }
 
-                        foreach (int t in Plan.Body.TriangleIndices)
-                        {
-                            Plan.Bodyindices.Add(t);
-                        }
-
+                    foreach (int t in Plan.Body.TriangleIndices)
+                    {
+                        Plan.Bodyindices.Add(t);
+                    }
 
                     if (Plan.couchexists == true)
                     {
@@ -338,8 +333,7 @@ namespace VMS.TPS
            // System.Windows.Forms.MessageBox.Show("Starting GUI on separate thread.");
              Task.Run(() => System.Windows.Forms.Application.Run(new GUI(PLANS, Image)));
            // System.Windows.Forms.MessageBox.Show("After GUI Call, main script thread will now return and close.");
-            //should put this on it's own thread.
-
+  
             return;
         }
 
