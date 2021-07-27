@@ -1,22 +1,11 @@
 ﻿using System;
-using System.Media;
-using System.Numerics;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using System.Threading;
-using System.Windows;
-using System.Windows.Forms;
 using System.Windows.Media.Media3D;
 using g3;
-using System.ComponentModel;
-using System.IO;
-using System.Reflection;
-using System.Diagnostics;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
+
 using VMS.TPS.Common.Model.API;
 using VMS.TPS.Common.Model.Types;
 using CollisionCheck;
@@ -24,14 +13,15 @@ using CollisionCheck;
 
 
 /*
-    Collision Check - Main program
-    Copyright (c) Zackary Thomas Ricci Morelli
-    Release 3.1 July 8, 2021
+    Collision Check - Script Execute Startup program
+
+
+    Description/information:
 
     This program is multi-threaded using the Task Parallel Library (TPL) found in .NET Framework. It also uses traditional threading from earlier versions of .NET.
     Thread safety is achieved mostly through the use of custom classes to completley extract ESAPI (which cannot be used in a multi-threaded environment).
     The Main thread starts here when the Execute method the ESAPI Script class is called. The GUI is then called on it's own Task, and the execute method (button) of the of GUI is called on it's own Task as well.
-    This ensures that the GUI is always responsive. The Execute method from the GUI then conducts the Collision analysis for each beam in parallel (at the same time), and does any ARIA database querying on a separate thread.
+    This ensures that the GUI is always responsive. The Execute method from the GUI then conducts the Collision analysis for each beam in parallel (at the same time).
     This ensures the program runs smoothly.
 
     This program is expressely written as a plug-in script for use with Varian's Eclipse Treatment Planning System, and requires Varian's API files to run properly.
@@ -39,47 +29,58 @@ using CollisionCheck;
     This program also uses the Gradientspace package (g3) to generate and manipulate 3D mesh structures, and write them as STL files.
     This program also uses the HelixToolkit package to render the STL files of each beam if a collision happens. This is not located here, but is in another class/file called 3DRender. 3DRender is used by the GUI class.
 
-    Also, very important, in the case of a static MLC plan, this program will start a completley new process (on it's own asychronous Task) on the computer and run a complete separate program called Colliosncheck_Inforetrieval.
-    Collisioncheck_inforetrieval is an executable command-line program (written by me) saved on the ARIA server which uses an Entity Framework 6 model called ARIAQUERY to query the ARIA database for gantry information that the Collision check program needs. This information is not available in the Eclipse API if the plan does not have Control points.
-    The gantry information obtained by CollisonCheck_inforetrieval is written to the standard output stream of the command-line, which is actually redirected and read in to collision check. The retrieval program then ends.
-    ARIAQUERY is a separate class (also made by me) that is an Entity Framework 6 (a popular microsoft package for dealing with SQL databases) model of the department's ARIA database SQL Server.
-    The details of how this works are not explained for security purposes.
-
      all linear dimensions are expressed in millimeters and all angles are expressed in degrees (many angles are converted from radians). 
-     the program is specifically based off the physical dimensions of the department's C-ARM Varian Linacs.
+     the program is specifically based off the physical dimensions of C-ARM Varian Linacs.
+     In particular:
+     the gantry head is 77 cm wide
+     the distance between the isocenter and the center of the gantry/collimator head is 41.5 cm.
+     the distance between the source (target in the gantry head) and the isocenter is 100 cm.
+     and therfore the distance to the source to the center of the gantry head is 58.5 cm.
+     These distances are always true, no matter what. the only way to change them is to physically move the linac
      This includes the API's internal vector objects and the positions it reports of various objects
      THE COORDINATE SYSTEM IS IN DICOM AND IS COMPLETLEY DEFINED BY THE TREATMENT PLANNING CT OF THE PATIENT. THIS MEANS THE COORDINATE SYSTEM IS AFFECTED BY TREATMENT ORIENTATION. COUCH KICKS ROTATE THE ENTIRE COORDINATE SYSTEM AS WELL.
      The program is designed around this and is able to produce an accurate geometric model that accounts for these coordinate system complications. You may notice that the part of this program that makes the gantry structure includes an absurd amount of vector transformations. This is because of the coordinate system.
 
-    Description: This is the main program that is called when Collision Check is run. It includes a GUI, which is called from here.
+    This is the main program that is called when Collision Check is run. It includes a GUI, which is called from here.
     Specifically, The execute method of the VMS Script class calles the GUI (separate file). When the user clicks "Execute" on the GUI, the GUI then calls the CollionCheck method, located here.
-    CollisonCheck calls the Boxmaker method. CollisionCheck ouputs collision information using the custom CollisonAlert class (located here).
+    CollisonCheck calls the Boxmaker method. CollisionCheck ouputs collision information using the custom CollisonAlert class.
     The User uses the GUI to select which plan to run the program on (out of the courses that they have open) and the Body area of the CT Scan and the patient's Height.
     The GUI also outputs collision information if neccesary.
+
+    ==========================================================================
+
+    Copyright (C) 2021 Zackary Thomas Ricci Morelli
+    
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+    I can be contacted at: zackmorelli@gmail.com
+
+
+    Release 3.2 - 7/26/2021
+
+
 */
 
 namespace VMS.TPS
 {
-
     public class Script  // creates a class called Script within the VMS.TPS Namesapce
     {
-
         public Script() { }  // instantiates a Script class
-
-
-        // Declaration space for all the functions which make up the program.
-        // Execution begins with the "Execute" function.
-        // gantry head 77 cm wide
-        // 41.5 cm distance from iso to gantry head
-        // This is called in the collision analysis
-
-
 
         //This is the execute function of the script class which calls the GUI. The GUI in turn calls the CollionCheck method.
         public void Execute(ScriptContext context)     
         {
-            //Variable declaration space
-
             IEnumerable<PlanSetup> Plans = context.PlansInScope;
             Patient patient = context.Patient;
             Image image = context.Image;
@@ -92,7 +93,7 @@ namespace VMS.TPS
             }
 
             //populate my own classes with ESAPI info in order to completley isolate ESAPI, that way we can multi-thread.
-            // that requires figuring out a lot of stiff here though before we call the GUI (on its own thread)
+            // that requires figuring out a lot of stuff here though before we call the GUI (on its own thread)
 
             List<PLAN> PLANS = new List<PLAN>();
             string strctid = null;
@@ -202,11 +203,15 @@ namespace VMS.TPS
                         PATIENTORIENTATION = "FeetFirstProne";
                     }
 
+                    //now we loop through all the beams in the current plan to get beam-specific information
                     List<BEAM> Beams = new List<BEAM>();
                     foreach (Beam beam in plan.Beams)
                     {
                         bool mlctype = false;
 
+                        //this is important. for a long time I didn't realize that a fair amount of plans have beams with undefined mlcs. this was causing the program to do thimgs it shouldn't have
+                        // since i taught the program to interpolate gantry angles for any beam, without needing more than the first control point, which every beam has, this isn't an issue
+                        // but still, be careful about the mlc type of a beam. It isn't obvoius.
                         if (beam.MLCPlanType == MLCPlanType.Static || beam.MLCPlanType == MLCPlanType.NotDefined)
                         {
                             mlctype = false;
@@ -259,7 +264,13 @@ namespace VMS.TPS
                     PLANS.Add(new PLAN { planId = plan.Id, StructureSetId = plan.StructureSet.Id, TreatmentOrientation = PATIENTORIENTATION, Body = Body.MeshGeometry, CouchInterior = CouchInterior.MeshGeometry, ProneBreastBoard = Prone_Brst_Board.MeshGeometry, breastboardexists = breastboardexists, couchexists = couchexist, Beams = Beams, patientId = patientId, patientsex = patientsex, courseId = courseId, Bodycenter = bodycenter, BreastBoardcenter = breastboardcenter, CouchInteriorcenter = couchinteriorcenter, Bodyvects = new List<Vector3d>(), Bodyindices = new List<int>(), CouchInteriorvects = new List<Vector3d>(), CouchInteriorindices = new List<int>(), BreastBoardvects = new List<Vector3d>(), BreastBoardindices = new List<int>(), BodyBoxXsize = 1000000.0, BodyBoxYSize = 1000000.0 , BodyBoxZSize = 1000000.0});
                 }
 
-                foreach(PLAN Plan in PLANS)
+                //this loops through the PLAN list we just made to fill in all the geometric information for the body structure, breast board (if present), and couch.
+                //In ESAPI, the Structure.MeshGeometry method gives access to the 3D Mesh of structures in an RT plan.
+                //However, it uses the Microsoft MeshGeometry3D class.
+                //The code below is a really good template for how to pull the info given in the Microsoft MeshGeometry3D class and put it into lists that can be used to create meshes in the GradientSpace class.
+                //The GradientSpace meshes are much more useful because GradientSpace contains a ton of methods to do geometric and collision analysis.
+                //The lists of vertex vectors and triangle indices are used to construct meshes with the GradientSpace class
+                foreach (PLAN Plan in PLANS)
                 {
                     // System.Windows.Forms.MessageBox.Show(Plan.planId + "START body vector conversion");
                     //System.Windows.Forms.MessageBox.Show("Body positions size: " + Plan.Body.Positions.Count);
@@ -315,11 +326,9 @@ namespace VMS.TPS
                     Plan.BodyBoxYSize = Plan.Body.Bounds.SizeY;
                     Plan.BodyBoxZSize = Plan.Body.Bounds.SizeZ;
                 }
-
             }
             catch(Exception e)
             {
-
                 System.Windows.Forms.MessageBox.Show(e.ToString() + "\n\n\n" + e.StackTrace + "\n\n\n" + e.InnerException);
             }
 
@@ -329,7 +338,12 @@ namespace VMS.TPS
 
             System.Windows.Forms.Application.EnableVisualStyles();
 
-            //Starts GUI 
+            //The GUI starts running on its own thread. We pass it the PLAN list and IMAGE object, so it has all the info it needs.
+            //The program then returns, ending the script execute method and ENDING THE ECLIPSE SCRIPT.
+            //At this point, as far as Eclipse is concerned, the program has ended.
+            //However, the GUI is still running on another Task in the Windows OS.
+            //So what actaully happens when you run the script is there is like a second where nothing happens, because all the code in this script execute file is running and there is no output.
+            //Then GUI starts and appears on the screen. The Eclipse script ends at the same time, like a second or second and a half after it is started. Eclipse becomes unfrozen while GUI runs on runs on its own thread.
            // System.Windows.Forms.MessageBox.Show("Starting GUI on separate thread.");
              Task.Run(() => System.Windows.Forms.Application.Run(new GUI(PLANS, Image)));
            // System.Windows.Forms.MessageBox.Show("After GUI Call, main script thread will now return and close.");
