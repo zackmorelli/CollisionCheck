@@ -6,11 +6,15 @@ There is also a .docx README file in the repo that describes what the program do
 
 Collision Check is an ESAPI script that analyzes RT plans and predicts if any collisions will occur between the linac and the patient or treatment table. It works for any Varian C-arm linac.
 
+CollisionCheck supports collision detection for EBRT plans that use isocentric and non-isocentric beams and plans that involve patient support devices (like a breast board) and gantry accessories (like electron cones and SRS cones).
+
 This is useful because the Eclipse software itself does not have collision detection capabilities. Eclipse is very much designed for radiation treatment planning. The images Eclipse renders of RT plans are great for visualizing dose, but it does not do a good job of accuratley portraying the physical location of everything in the treatment room, particularly the location of the linac gantry in relation to the patient. 
 
 The CollisionCheck program was tested in the clinic over time and it is able to accuratley predict collsions, however it does have limitations. Please refer to the "Collision script model-limitations V2.docx" file for more information.
 
 CollisonCheck is a very large and complex program compared to most of the other ARIA/Eclipse projects I worked on at Lahey. I worked on it over a long period of time and it has gone through several major refactors. It is also computationally expensive, partly because it takes a conservative approach to collision prediction due to the seriosuness of this topic. That is why CollisionCheck is multi-threaded to run on multiple beams of an RT plan at once. It does a good job balancing thourogness and speed.
+
+CollisonCheck makes heavy use of a third-party library called GradientSpace for working with 3D mesh structures.
 
 Please refer to the .docx README file for more detailed information about how CollisionCheck works.
 
